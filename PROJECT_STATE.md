@@ -60,21 +60,24 @@ Each sub-video is an autonomous MP4 clip paired with a standardized JSON task an
 * `05_Watch_Zodiac_f8NFSwb6VQ8_clip_595s_608s.mp4` + `.json` (13.01s, 390 frames): Tweezer extraction of miniature brass gear from jewel bearing.
 * `06_Singer_SewingMachine_BMNgIfLHfjk_clip_118s_129s.mp4` + `.json` (11.04s, 276 frames): Bimanual detachment of heavy cast-iron faceplate.
 
-### C. Tier 2 Physical 3D Digital Twins & LeRobot Datasets (`data/processed/`)
-Each processed demonstration includes the verified 3D mesh (`.obj`), structured kinematic metadata (`.json`), and official Hugging Face LeRobot dataset table (`.parquet`):
+### C. Tier 2 Physical 3D Digital Twins, LeRobot Datasets & Visual Assets (`data/processed/` & `assets/images/`)
+Each processed demonstration includes the verified 3D mesh (`.obj`), structured kinematic metadata (`.json`), official Hugging Face LeRobot dataset table (`.parquet`), side-by-side comparison JPEG, and 360° rotating animated GIF:
 1. **Drop Key Demonstration** (`01_lpl_dropkey`):
    * `01_lpl_dropkey_scene_3d.obj`: Complete 3D mesh (674 vertices, 1,316 faces).
    * `01_lpl_dropkey_metadata.json`: LeRobot-compliant state-action schema with contact vectors and metric dimensions.
    * `01_lpl_dropkey_metadata.parquet`: 255 frames, 10 columns (state, action, contact force, zero-penetration SDF, feasibility).
-   * `01_lpl_dropkey_render_3d.png`: High-resolution 3D isometric render preview.
+   * `assets/images/01_lpl_dropkey_comparison.jpg`: High-resolution side-by-side video vs. 3D digital twin.
+   * `assets/images/01_lpl_dropkey_animation.gif`: Smooth 360° rotating orbit GIF.
 2. **Watchmaker Gear Extraction** (`05_watch_zodiac`):
    * `05_watch_zodiac_scene_3d.obj`: 912 vertices, 1,780 faces (movement holder, mainplate, jewel bearing, pinion gear, #5 Dumont tweezers, stabilizing thumb).
    * `05_watch_zodiac_metadata.json`: Micro-manipulation LeRobot schema with 0.45N tweezer grip forces.
    * `05_watch_zodiac_metadata.parquet`: 390 frames, 10 columns.
+   * `assets/images/05_watch_zodiac_comparison.jpg` & `assets/images/05_watch_zodiac_animation.gif`.
 3. **Singer Faceplate Detachment** (`06_singer_sewingmachine`):
    * `06_singer_sewingmachine_scene_3d.obj`: 828 vertices, 1,608 faces (cast iron machine head, filigree faceplate, needle/presser bar, bimanual gloved contacts).
    * `06_singer_sewingmachine_metadata.json`: Bimanual opposing grip with 9.5N outward detachment vector.
    * `06_singer_sewingmachine_metadata.parquet`: 276 frames, 10 columns.
+   * `assets/images/06_singer_sewingmachine_comparison.jpg` & `assets/images/06_singer_sewingmachine_animation.gif`.
 
 ### D. Core Codebase Modules (`src/`)
 * `src/ingestion/slicer.py`: Slices continuous manipulation sub-videos (`.mp4`) and generates structured JSON metadata.
@@ -84,37 +87,39 @@ Each processed demonstration includes the verified 3D mesh (`.obj`), structured 
 * `src/pose_extraction/reconstruct_watch_scene.py`: Procedural 3D scene builder for horology gear micro-extraction.
 * `src/pose_extraction/reconstruct_singer_scene.py`: Procedural 3D scene builder for antique restoration faceplate detachment.
 * `src/feasibility/urdf_auditor.py`: Kinematic feasibility auditor with ALOHA ViperX, Unitree H1, and Franka Panda IK verification and automated rejection threshold ($\ge 85\%$).
+* `src/feasibility/mujoco_verifier.py`: Automated MuJoCo physics simulation verifier executing forward dynamics to certify stability and contact compliance without numerical explosion.
 * `src/dynamics/inverse_dynamics.py`: Visual inverse dynamics engine computing mass from material density, 3D inertia tensors, trajectory acceleration, and Coulomb friction normal forces.
 * `src/exporter/lerobot_exporter.py`: Hugging Face LeRobot Apache Parquet serializer with schema validation.
 * `src/pipeline.py`: Main CLI orchestrator connecting all modules end-to-end.
+* `scripts/render_visual_assets.py`: Automatic visual comparison JPEG and 360° animation GIF renderer.
 
 ### E. Automated Test Suite (`tests/`) — 100% Passing
-28 automated unit and integration tests passing in `pytest` (`py -m pytest tests/ -v`):
+29 automated unit and integration tests passing in `pytest` (`py -m pytest tests/ -v`):
 * `tests/test_slicer.py` (2 tests)
 * `tests/test_inspector.py` (3 tests)
 * `tests/test_geometry_and_contacts.py` (3 tests)
 * `tests/test_scene_reconstructions.py` (2 tests)
 * `tests/test_urdf_auditor.py` (6 tests)
+* `tests/test_mujoco_verifier.py` (1 test)
 * `tests/test_inverse_dynamics.py` (5 tests)
 * `tests/test_lerobot_exporter.py` (3 tests)
 * `tests/test_lerobot_schema.py` (2 tests)
 * `tests/test_pipeline_e2e.py` (2 tests)
 
-### F. Documentation (`doc/`)
-* [AGENTS.md](file:///c:/Silvere/Encours/Developpement/Praxis/AGENTS.md) : Root directives and philosophy.
-* [doc/objectives.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/objectives.md) : KPIs and Operational Design Domain.
-* [doc/architecture.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/architecture.md) : System diagrams and data models.
-* [doc/roadmap.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/roadmap.md) : 5-phase roadmap.
-* [doc/subagents_architecture.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/subagents_architecture.md) : Subagent prompt and role specs.
-* [doc/sources_and_provenance.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/sources_and_provenance.md) : Full video attribution and software licenses.
+### F. Consolidated Documentation (`doc/`)
+* [AGENTS.md](file:///c:/Silvere/Encours/Developpement/Praxis/AGENTS.md) : Root directives, automated rejection filter formulation, and coding standards.
+* [doc/architecture.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/architecture.md) : Master unified technical specification, mathematical models (SDF, friction cone, manipulability, MuJoCo), data schemas, and roadmap.
+* [doc/sources_and_provenance.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/sources_and_provenance.md) : Video attribution, timestamps, and software licenses.
+* [README.md](file:///c:/Silvere/Encours/Developpement/Praxis/README.md) : Project overview, side-by-side visual showcase, 360° orbit GIFs, and economic profitability analysis.
 
 ---
 
 ## 4. Next Steps for Immediate Execution
 
-1. **Rerun.io 3D Visualizer Integration**:
-   - Add synchronized logging script (`scripts/visualize_rerun.py`) to stream RGB sub-video frames alongside interactive 3D scene meshes and robot end-effector trajectories in Rerun.io.
-2. **MuJoCo Verification (Phase 4)**:
-   - Generate MJCF XML environments for each 3D twin to test dynamic stability under forward simulation.
-3. **Cloud Batch Pipeline (Phase 5)**:
-   - Prepare Dockerfile with CUDA support and GCP Cloud Run Job script (`scripts/gcp/run_batch.sh`).
+1. **Cloud Batch Pipeline (Phase 5)**:
+   - Prepare Dockerfile with NVIDIA CUDA acceleration and GCP Cloud Run Job script (`scripts/gcp/run_batch.sh`).
+2. **Automated Playlist Ingestion**:
+   - Ingest additional high-yield channels (LPL, iFixit, horology) in batch.
+3. **Public Dataset Release**:
+   - Publish initial set of certified manipulation episodes to Hugging Face Hub under `Praxis/manipulation-digital-twins-v1`.
+
