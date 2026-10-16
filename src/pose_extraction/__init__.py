@@ -5,7 +5,7 @@ Generic 3D Pose, Hand Mesh & Parametric Object Extraction Module for Praxis (`sr
 from src.pose_extraction.hand_model import (
     AnatomicalHandModel,
     DexterousRobotHandModel,
-    create_smooth_segment,
+    create_smooth_capsule,
     solve_two_bone_ik,
 )
 from src.pose_extraction.cad_primitives import (
@@ -18,9 +18,13 @@ from src.pose_extraction.extractor import (
     VideoPoseExtractor,
 )
 
+# For backwards compatibility
+create_smooth_segment = create_smooth_capsule
+
 __all__ = [
     "AnatomicalHandModel",
     "DexterousRobotHandModel",
+    "create_smooth_capsule",
     "create_smooth_segment",
     "solve_two_bone_ik",
     "ParametricCADBuilder",

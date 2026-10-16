@@ -138,6 +138,14 @@ def build_masterlock_scene(output_dir: str = "data/processed", progress: float =
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2)
     print(f"[+] LeRobot metadata exported: {meta_path}")
+
+    from src.feasibility.mujoco_verifier import MuJoCoVerifier
+    mjcf_xml = MuJoCoVerifier.generate_mjcf_scene("07_lpl_masterlock")
+    xml_path = os.path.join(output_dir, "07_lpl_masterlock_scene.xml")
+    with open(xml_path, "w", encoding="utf-8") as f:
+        f.write(mjcf_xml)
+    print(f"[+] MuJoCo MJCF simulation scene exported: {xml_path}")
+
     return obj_path, meta_path
 
 

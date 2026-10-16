@@ -243,23 +243,24 @@ class VideoPoseExtractor:
         R_lh_local = np.column_stack([x_lh, y_lh, z_lh])
         R_lh_world = R_lock @ R_lh_local
 
-        # Target 3D position for the connected Left Thumb Tip on the front face (+Y = +13.5mm) of the padlock:
+        # Target 3D position for the connected Left Thumb Tip on the front face of the padlock:
+        # Padlock front face is at Y_local = +9.5mm; with thumb radius ~3.5mm, center at Y = +13.0mm gives SDF = 0.0mm (tangent, zero penetration)
         lh_thumb_target_world = lock_to_world(np.array([
-            10.0 - 2.0 * l_thumb_slide,
-            13.5,
-            11.5 - 12.5 * l_thumb_slide
+            9.0 - 2.0 * l_thumb_slide,
+            13.0,
+            12.0 - 13.0 * l_thumb_slide
         ]))
 
         lh_curls = {
-            "index": (0.22, 0.35, 0.25),   # Left index extended behind the open shackle arch (visible at top)
-            "middle": (0.48, 0.65, 0.40),  # Wrapping behind padlock body
-            "ring": (0.58, 0.75, 0.45),
-            "pinky": (0.68, 0.82, 0.50),
+            "index": (0.20, 0.30, 0.20),   # Extended along top edge behind shackle arch
+            "middle": (0.45, 0.60, 0.35),  # Supporting back face
+            "ring": (0.55, 0.70, 0.40),
+            "pinky": (0.65, 0.75, 0.45),
         }
 
         if use_robot_hands:
             lh_robot = DexterousRobotHandModel(is_left_hand=True, scale=0.86)
-            lh_meshes = lh_robot.build_robotic_parts(
+            lh_meshes = lh_robot.build_robotic_manipulator(
                 palm_center=lh_palm_world,
                 palm_rot=R_lh_world,
                 finger_curls=lh_curls,
@@ -272,7 +273,6 @@ class VideoPoseExtractor:
                 palm_center=lh_palm_world,
                 palm_rot=R_lh_world,
                 finger_curls=lh_curls,
-                palm_arch=0.14,
                 thumb_tip_target_world=lh_thumb_target_world,
             )
             for m, ptype in lh_parts:
@@ -448,7 +448,7 @@ class VideoPoseExtractor:
 
         if use_robot_hands:
             rh_robot = DexterousRobotHandModel(is_left_hand=False, scale=0.84)
-            rh_meshes = rh_robot.build_robotic_parts(
+            rh_meshes = rh_robot.build_robotic_manipulator(
                 palm_center=rh_palm_world,
                 palm_rot=R_rh_world,
                 finger_curls=rh_curls,
@@ -462,7 +462,6 @@ class VideoPoseExtractor:
                 palm_center=rh_palm_world,
                 palm_rot=R_rh_world,
                 finger_curls=rh_curls,
-                palm_arch=0.14,
                 thumb_tip_target_world=rh_thumb_target,
                 index_tip_target_world=rh_index_target,
             )

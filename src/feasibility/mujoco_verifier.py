@@ -89,6 +89,29 @@ class MuJoCoVerifier:
 </mujoco>"""
 
 
+        elif scene_id == "07_lpl_masterlock":
+            return """<mujoco model="masterlock_scene">
+  <compiler angle="degree" coordinate="local"/>
+  <option timestep="0.002" gravity="0 0 -9.81"/>
+  <worldbody>
+    <geom name="table" type="plane" size="0.3 0.3 0.05" rgba="0.2 0.22 0.25 1"/>
+    <body name="padlock_body" pos="0 0 0.035">
+      <freejoint/>
+      <geom name="core_laminated" type="box" size="0.020 0.0095 0.013" pos="0 0 0.0045" rgba="0.75 0.78 0.82 1" mass="0.165"/>
+      <geom name="bumper_vinyl" type="box" size="0.0208 0.0102 0.004" pos="0 0 -0.0135" rgba="0.85 0.15 0.15 1" mass="0.030"/>
+      <body name="shackle_open" pos="-0.011 0 0.0175">
+        <geom name="pivot_leg" type="cylinder" size="0.0035 0.012" pos="0 0 0.012" rgba="0.9 0.92 0.95 1" mass="0.015"/>
+        <geom name="shackle_arch" type="cylinder" size="0.0035 0.011" pos="-0.011 0 0.024" rgba="0.9 0.92 0.95 1" mass="0.012"/>
+        <geom name="free_toe" type="cylinder" size="0.0035 0.007" pos="-0.022 0 0.017" rgba="0.9 0.92 0.95 1" mass="0.008"/>
+      </body>
+    </body>
+    <body name="bypass_needle" pos="0.011 0 0.055">
+      <joint type="free" damping="0.002"/>
+      <geom name="needle_blade" type="box" size="0.022 0.00075 0.00025" rgba="0.2 0.9 1 1" mass="0.0045"/>
+    </body>
+  </worldbody>
+</mujoco>"""
+
         else:
             raise ValueError(f"Unknown scene_id '{scene_id}'")
 
