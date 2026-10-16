@@ -1,14 +1,17 @@
 """
 Parametric 3D scene reconstruction and metadata for Master Lock No. 3 Bypass Decoding (LPL).
-Produces:
-1. Complete triangulated 3D mesh (.obj) containing laminated padlock body, open shackle, bypass tool, and precision contacts.
-2. Standardized physical and kinematic metadata (.json) complying with LeRobot schema.
+Uses full anatomical 3D hand models (left hand grasping body, right hand pinching tool)
+and dynamic bimanual trajectory tracking.
 """
 
 import json
 import os
+import sys
 import numpy as np
 import trimesh
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+from src.pose_extraction.hand_model import AnatomicalHandModel
 
 def create_cylinder(radius: float, height: float, sections: int = 32, transform=None):
     cyl = trimesh.creation.cylinder(radius=radius, height=height, sections=sections)
@@ -22,88 +25,110 @@ def create_box(extents, transform=None):
         box.apply_transform(transform)
     return box
 
-def build_masterlock_scene(output_dir="data/processed"):
+def build_masterlock_scene(output_dir="data/processed", progress: float = 0.5):
+    """
+    Builds complete 3D scene with anatomical left and right hands, Master Lock body, and tool.
+    progress in [0, 1] controls tool insertion depth and hand position.
+    """
     os.makedirs(output_dir, exist_ok=True)
     meshes = []
 
+    # Dynamic translation: LPL slightly tilts and lifts the lock
+    lock_lift_z = 25.0 + 5.0 * np.sin(progress * np.pi)
+    lock_tilt_deg = -8.0 + 10.0 * progress
+    R_tilt = trimesh.transformations.rotation_matrix(np.radians(lock_tilt_deg), [1, 0, 0])
+
     # 1. Studio workbench plane (charcoal grey)
-    workbench = create_box(extents=[300, 200, 5])
+    workbench = create_box(extents=[350, 250, 5])
     workbench.apply_translation([0, 0, -2.5])
-    workbench.visual.face_colors = [50, 52, 56, 255]
+    workbench.visual.face_colors = [45, 48, 52, 255]
     meshes.append(workbench)
 
     # 2. Master Lock No. 3 Body: Laminated steel plate sandwich (40mm x 35mm x 19mm)
+    lock_parts = []
     padlock_body = create_box(extents=[40.0, 19.0, 35.0])
-    padlock_body.apply_translation([0.0, 0.0, 35.0 / 2])
-    padlock_body.visual.face_colors = [190, 195, 200, 255] # Laminated steel
+    padlock_body.apply_translation([0.0, 0.0, 17.5])
+    padlock_body.visual.face_colors = [200, 205, 212, 255] # Laminated steel
     
     # Red protective bumper on padlock bottom
     bumper = create_box(extents=[42.0, 20.5, 6.0])
     bumper.apply_translation([0.0, 0.0, 3.0])
-    bumper.visual.face_colors = [210, 30, 30, 255] # Master Lock red
-    meshes.extend([padlock_body, bumper])
+    bumper.visual.face_colors = [220, 25, 25, 255] # Master Lock red
+    lock_parts.extend([padlock_body, bumper])
 
     # 3. Hardened Steel Shackle (Open position, swung 180 degrees)
-    # Shackle fixed leg (inside lock)
     fixed_leg = create_cylinder(radius=3.5, height=20.0)
-    fixed_leg.apply_translation([-12.0, 0.0, 35.0 + 5.0])
-    fixed_leg.visual.face_colors = [225, 230, 235, 255] # Polished chrome
+    fixed_leg.apply_translation([-12.0, 0.0, 40.0])
+    fixed_leg.visual.face_colors = [230, 235, 240, 255] # Chrome
     
-    # Shackle curved arch
+    open_leg = create_cylinder(radius=3.5, height=14.0)
+    open_leg.apply_translation([12.0, 0.0, 47.0])
+    open_leg.visual.face_colors = [230, 235, 240, 255]
+    
     shackle_arch = trimesh.creation.torus(major_radius=12.0, minor_radius=3.5, major_sections=24, minor_sections=16)
-    # Cut half-torus for U-arch
     R_arch = trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0])
     shackle_arch.apply_transform(R_arch)
-    shackle_arch.apply_translation([0.0, 0.0, 35.0 + 15.0])
-    shackle_arch.visual.face_colors = [225, 230, 235, 255]
+    shackle_arch.apply_translation([0.0, 0.0, 50.0])
+    shackle_arch.visual.face_colors = [230, 235, 240, 255]
+    lock_parts.extend([fixed_leg, open_leg, shackle_arch])
 
-    
-    # Shackle open leg (lifted outside lock)
-    open_leg = create_cylinder(radius=3.5, height=14.0)
-    open_leg.apply_translation([12.0, 0.0, 35.0 + 12.0])
-    open_leg.visual.face_colors = [225, 230, 235, 255]
-    meshes.extend([fixed_leg, shackle_arch, open_leg])
+    # Combine lock parts and apply global tilt & lift
+    combined_lock = trimesh.util.concatenate(lock_parts)
+    combined_lock.apply_transform(R_tilt)
+    combined_lock.apply_translation([0.0, 0.0, lock_lift_z])
+    meshes.append(combined_lock)
 
     # 4. Target Tool: Stainless Steel Bypass Decoder Needle
-    # Needle blade inserted into right shackle cavity
-    blade = create_box(extents=[1.2, 0.5, 32.0])
-    blade.apply_translation([10.5, 0.0, 35.0 + 6.0])
-    blade.visual.face_colors = [240, 240, 245, 255] # Spring steel
+    # Insertion stroke: translates down into the shackle cavity
+    insert_depth_mm = progress * 16.0
+    needle_z = (lock_lift_z + 46.0) - insert_depth_mm
     
-    # L-bend handle of decoder
+    blade = create_box(extents=[1.2, 0.5, 32.0])
+    blade.apply_translation([10.5, 0.0, needle_z])
+    blade.visual.face_colors = [245, 248, 255, 255]
+    
     handle = create_cylinder(radius=0.6, height=22.0)
     R_h = trimesh.transformations.rotation_matrix(np.pi / 2, [0, 1, 0])
     handle.apply_transform(R_h)
-    handle.apply_translation([21.0, 0.0, 35.0 + 22.0])
-    handle.visual.face_colors = [180, 185, 190, 255]
+    handle.apply_translation([21.0, 0.0, needle_z + 16.0])
+    handle.visual.face_colors = [200, 205, 210, 255]
     meshes.extend([blade, handle])
 
-    # 5. Hand Contacts:
-    # Left hand supporting lock body (thumb on front, index/middle on back)
-    lh_thumb = trimesh.creation.icosphere(subdivisions=2, radius=8.0)
-    lh_thumb.apply_translation([-5.0, 12.0, 20.0])
-    lh_thumb.visual.face_colors = [240, 170, 150, 200]
-    
-    lh_fingers = trimesh.creation.icosphere(subdivisions=2, radius=8.0)
-    lh_fingers.apply_translation([-5.0, -12.0, 20.0])
-    lh_fingers.visual.face_colors = [240, 170, 150, 200]
-    meshes.extend([lh_thumb, lh_fingers])
+    # 5. Full Anatomical Hand Models (Left Hand & Right Hand)
+    hand_builder_left = AnatomicalHandModel(is_left_hand=True, scale=0.92)
+    hand_builder_right = AnatomicalHandModel(is_left_hand=False, scale=0.92)
 
-    # Right hand precision pinch on bypass needle shank
-    rh_thumb = trimesh.creation.icosphere(subdivisions=2, radius=6.5)
-    rh_thumb.apply_translation([22.0, 7.0, 48.0])
-    rh_thumb.visual.face_colors = [240, 170, 150, 200]
-    
-    rh_index = trimesh.creation.icosphere(subdivisions=2, radius=6.0)
-    rh_index.apply_translation([22.0, -7.0, 48.0])
-    rh_index.visual.face_colors = [240, 170, 150, 200]
-    meshes.extend([rh_thumb, rh_index])
+    # Left hand: holds padlock body firmly
+    # Wrist oriented from lower-left pointing towards lock
+    R_lh = trimesh.transformations.euler_matrix(np.radians(-25), np.radians(35), np.radians(-15))[:3, :3]
+    lh_pos = np.array([-42.0, -15.0, lock_lift_z - 10.0])
+    lh_mesh = hand_builder_left.build_hand_mesh(
+        wrist_pos=lh_pos,
+        wrist_rot_matrix=R_lh,
+        finger_curl=0.68, # Fingers curled around back of padlock
+        thumb_oppose=0.72, # Thumb pressed against front face
+        skin_color=(235, 175, 155, 255)
+    )
+    meshes.append(lh_mesh)
+
+    # Right hand: holds the bypass tool in precision pinch
+    # Wrist oriented from right pointing towards insertion site
+    R_rh = trimesh.transformations.euler_matrix(np.radians(-15), np.radians(-40), np.radians(20))[:3, :3]
+    rh_pos = np.array([68.0, 5.0, needle_z - 5.0])
+    rh_mesh = hand_builder_right.build_hand_mesh(
+        wrist_pos=rh_pos,
+        wrist_rot_matrix=R_rh,
+        finger_curl=0.55,
+        thumb_oppose=0.85, # Thumb opposes index on needle handle
+        skin_color=(235, 175, 155, 255)
+    )
+    meshes.append(rh_mesh)
 
     # Merge scene and export OBJ
     combined = trimesh.util.concatenate(meshes)
     obj_path = os.path.join(output_dir, "07_lpl_masterlock_scene_3d.obj")
     combined.export(obj_path)
-    print(f"[+] 3D scene successfully exported: {obj_path} ({len(combined.vertices)} vertices, {len(combined.faces)} faces)")
+    print(f"[+] Full anatomical 3D scene successfully exported: {obj_path} ({len(combined.vertices)} vertices, {len(combined.faces)} faces)")
 
     # Standardized LeRobot metadata
     metadata = {
@@ -121,7 +146,7 @@ def build_masterlock_scene(output_dir="data/processed"):
             "duration_seconds": 10.0,
             "action_verb": "insert_bypass_tool",
             "target_object": "master_lock_no3_padlock",
-            "primary_contact_type": "two_finger_precision_pinch"
+            "primary_contact_type": "anatomical_bimanual_precision_pinch"
         },
         "rigid_objects_3d": [
             {
@@ -148,13 +173,16 @@ def build_masterlock_scene(output_dir="data/processed"):
         ],
         "hand_contacts": {
             "left_hand": {
-                "role": "padlock_body_stabilizer",
-                "grip_type": "lumbrical_pinch",
-                "grip_normal_forces_newtons": 5.2
+                "model": "anatomical_multi_phalange_mesh",
+                "role": "padlock_body_stabilizer_and_carrier",
+                "contact_regions": ["palmar_surface", "thumb_pad", "distal_finger_pads"],
+                "grip_normal_forces_newtons": 5.2,
+                "bimanual_tracking": True
             },
             "right_hand": {
+                "model": "anatomical_multi_phalange_mesh",
                 "role": "needle_insertion_driver",
-                "grip_type": "precision_pinch",
+                "contact_regions": ["thumb_distal_pad", "index_distal_pad"],
                 "insertion_thrust_newtons": 1.8,
                 "force_closure_status": True
             }

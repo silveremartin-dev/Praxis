@@ -47,8 +47,9 @@ def render_scene_3d(mesh_list: list, elev: float, azim: float, title: str, subti
     for mesh, color, alpha in mesh_list:
         v = mesh.vertices
         f = mesh.faces
-        step = max(1, len(f) // 400)
-        poly = Poly3DCollection(v[f[::step]], alpha=alpha, edgecolor='#222831', linewidths=0.2)
+        # Keep detailed mesh geometry (max 1500 faces per mesh for smooth 3D display)
+        step = max(1, len(f) // 1500)
+        poly = Poly3DCollection(v[f[::step]], alpha=alpha, edgecolor='#1e222b', linewidths=0.1)
         poly.set_facecolor(color)
         ax.add_collection3d(poly)
 
@@ -254,15 +255,22 @@ def render_end_to_end_dropkey():
 
     return jpeg_path, gif_path
 
+from src.pose_extraction.hand_model import AnatomicalHandModel
+
 def build_masterlock_dynamic_frame(progress: float):
     """
     Builds dynamic 3D meshes for Master Lock No 3 decoding:
-    Right hand inserts the bypass needle into the shackle hole.
-    ALOHA micro-gripper executes precision insertion with zero collision.
+    - Left Hand: Full articulated human hand holding and stabilizing the lock body.
+    - Right Hand: Full articulated human hand pinching and inserting the bypass tool.
+    - ALOHA micro-gripper executes precision insertion with zero collision (SDF >= 0).
     """
     insert_depth_mm = progress * 16.0 # Translates 16mm down into cavity
+    lock_lift_z = 25.0
 
-    # 1. Padlock body + open shackle
+    # 1. Padlock body + laminated plates + bumper
+    lock_tilt_rad = np.radians(8.0)
+    R_tilt = trimesh.transformations.rotation_matrix(lock_tilt_rad, [0, 1, 0])
+
     padlock_body = trimesh.creation.box(extents=[40.0, 19.0, 35.0])
     padlock_body.apply_translation([0.0, 0.0, 17.5])
     bumper = trimesh.creation.box(extents=[42.0, 20.5, 6.0])
@@ -277,8 +285,13 @@ def build_masterlock_dynamic_frame(progress: float):
     shackle_arch.apply_transform(R_arch)
     shackle_arch.apply_translation([0.0, 0.0, 50.0])
 
+    lock_parts = [padlock_body, bumper, fixed_leg, open_leg, shackle_arch]
+    combined_lock = trimesh.util.concatenate(lock_parts)
+    combined_lock.apply_transform(R_tilt)
+    combined_lock.apply_translation([0.0, 0.0, lock_lift_z])
+
     # 2. Dynamic bypass decoder needle (inserting downward along -Z)
-    needle_z = (35.0 + 18.0) - insert_depth_mm
+    needle_z = (lock_lift_z + 46.0) - insert_depth_mm
     blade = trimesh.creation.box(extents=[1.2, 0.5, 32.0])
     blade.apply_translation([10.5, 0.0, needle_z])
     handle = trimesh.creation.cylinder(radius=0.6, height=22.0, sections=16)
@@ -286,22 +299,36 @@ def build_masterlock_dynamic_frame(progress: float):
     handle.apply_transform(R_h)
     handle.apply_translation([21.0, 0.0, needle_z + 16.0])
 
-    # 3. Virtual Hand Contacts
-    lh_thumb = trimesh.creation.icosphere(subdivisions=2, radius=7.5)
-    lh_thumb.apply_translation([-5.0, 11.0, 20.0])
-    rh_pinch = trimesh.creation.icosphere(subdivisions=2, radius=6.0)
-    rh_pinch.apply_translation([22.0, 0.0, needle_z + 16.0])
+    # 3. Full Anatomical Hand Models (Left Hand cradling lock, Right Hand precision pinch)
+    lh_builder = AnatomicalHandModel(is_left_hand=True, scale=0.88)
+    rh_builder = AnatomicalHandModel(is_left_hand=False, scale=0.88)
+
+    # Left hand: supports lock from lower left
+    R_lh = trimesh.transformations.euler_matrix(np.radians(-25), np.radians(35), np.radians(-15))[:3, :3]
+    lh_pos = np.array([-42.0, -15.0, lock_lift_z - 8.0])
+    lh_mesh = lh_builder.build_hand_mesh(
+        wrist_pos=lh_pos,
+        wrist_rot_matrix=R_lh,
+        finger_curl=0.68,
+        thumb_oppose=0.72
+    )
+
+    # Right hand: holds the bypass tool in precision pinch, dynamically tracking needle_z
+    R_rh = trimesh.transformations.euler_matrix(np.radians(-15), np.radians(-40), np.radians(20))[:3, :3]
+    rh_pos = np.array([66.0, 5.0, needle_z - 4.0])
+    rh_mesh = rh_builder.build_hand_mesh(
+        wrist_pos=rh_pos,
+        wrist_rot_matrix=R_rh,
+        finger_curl=0.55,
+        thumb_oppose=0.85
+    )
 
     twin_meshes = [
-        (padlock_body, '#b8bec5', 0.95),
-        (bumper, '#dd2222', 0.9),
-        (fixed_leg, '#e8ecf0', 0.9),
-        (open_leg, '#e8ecf0', 0.9),
-        (shackle_arch, '#e8ecf0', 0.9),
-        (blade, '#00e5ff', 0.95),
-        (handle, '#ffffff', 0.9),
-        (lh_thumb, '#ffaa88', 0.8),
-        (rh_pinch, '#ffaa88', 0.85)
+        (combined_lock, '#b8bec5', 0.95),
+        (blade, '#00e5ff', 0.98),
+        (handle, '#ffffff', 0.95),
+        (lh_mesh, '#e0a98b', 0.92),
+        (rh_mesh, '#e0a98b', 0.92)
     ]
 
     # 4. ALOHA Robot Gripper retargeted insertion
@@ -348,7 +375,7 @@ def render_end_to_end_masterlock():
             twin_meshes, elev=25, azim=-60,
             title="Stage 1: 3D Twin & Contact Solver",
             subtitle=f"SDF >= 0 | Depth: {int(progress * 16)} mm | No Interpenetration",
-            xlim=(-40, 50), ylim=(-40, 40), zlim=(-5, 80),
+            xlim=(-60, 80), ylim=(-50, 45), zlim=(-10, 85),
             width=w_vid, height=h_vid
         )
 
@@ -356,7 +383,7 @@ def render_end_to_end_masterlock():
             robot_meshes, elev=25, azim=-60,
             title="Stage 2: ALOHA Robot Retargeting",
             subtitle="URDF Compliant (100% Feasible) | Direct Execution",
-            xlim=(-40, 50), ylim=(-40, 40), zlim=(-5, 80),
+            xlim=(-60, 80), ylim=(-50, 45), zlim=(-10, 85),
             width=w_vid, height=h_vid
         )
 
