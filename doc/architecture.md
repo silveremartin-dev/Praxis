@@ -1,95 +1,72 @@
-# Architecture Système : Pipeline Video-to-Physical-Digital-Twin
+# System Architecture: Praxis Video-to-Physical-Digital-Twin
 
-## 1. Vue d'Ensemble des Flux
+## 1. System Data Flow
 
 ```mermaid
 flowchart TD
-    YT["YouTube (yt-dlp)"] --> RawVideo["Vidéos Brutes (data/raw)"]
-    RawVideo --> Stage1["Module 1 : Cribleur Sémantique (VLM)"]
-    Stage1 --> Segments["Clips d'Actions Découpés (5-15s)"]
+    YT["YouTube Source Stream (yt-dlp)"] --> RawVideo["Raw Videos (data/raw/*.mp4)"]
+    RawVideo --> Stage1["Module 1: Action Slicer & Semantic Classifier"]
     
-    subgraph "Extraction Visuelle & Géométrique"
-        Segments --> HandEstimator["Module 2A : Pose Main 3D (HaMeR / MANO)"]
-        Segments --> ObjectEstimator["Module 2B : Détection & Pose Outil 6D (SAM2 / CAD Retrieval)"]
+    subgraph "Tier 1: Video Sub-Clips & Metadata"
+        Stage1 --> SubClips["Action Sub-Videos (data/clips/*.mp4)"]
+        Stage1 --> MetadataJSON["Action Metadata (data/clips/*.json)"]
     end
     
-    HandEstimator --> RawMeshes["Maillages 3D Bruts"]
-    ObjectEstimator --> RawMeshes
+    subgraph "Tier 2: Visual & Geometric Reconstruction"
+        SubClips --> HandMesh["Module 2A: 3D Hand Mesh (HaMeR / MANO)"]
+        SubClips --> ToolCAD["Module 2B: 6D Tool Pose & CAD Fitting (SAM 2 / Objaverse)"]
+    end
     
-    RawMeshes --> Stage3["Module 3 : Optimisation de Contact & Non-Pénétration (SDF)"]
-    Stage3 --> CleanPhysics["Trajectoires 3D Physiquement Cohérentes"]
+    HandMesh --> RawScene["Uncalibrated 3D Meshes"]
+    ToolCAD --> RawScene
     
-    CleanPhysics --> Stage4["Module 4 : Dynamique Inverse & Propriétés Physiques"]
-    Stage4 --> StateScene["Scène Virtuelle avec Masses, Inerties & Torques"]
+    RawScene --> Stage3["Module 3: Physical Contact & SDF Sanitizer"]
+    Stage3 --> CleanTraj["Collision-Free Physical Trajectories"]
+    
+    CleanTraj --> Stage4["Module 4: Inverse Dynamics Engine"]
+    Stage4 --> PhysicalTwin["Physical Digital Twin (Masses, Inertias, Torques)"]
     
     subgraph "Validation & Retargeting"
-        StateScene --> Stage5["Module 5 : Filtre de Faisabilité Robot (URDF / IK)"]
-        Stage5 --> Simulation["Simulation Physique (MuJoCo / Genesis / Isaac Sim)"]
-        Simulation --> Rerun["Visualiseur Rerun.io"]
+        PhysicalTwin --> Stage5["Module 5: URDF Feasibility Auditor (IK Solver)"]
+        Stage5 --> MuJoCoSim["Physics Simulation Verification (MuJoCo / Isaac Sim)"]
+        MuJoCoSim --> RerunViz["Synchronized 3D Viewer (Rerun.io)"]
     end
     
-    Simulation --> Export["Module 6 : Export Dataset Standardisé (Format LeRobot / Parquet)"]
+    MuJoCoSim --> Stage6["Module 6: Standardized Dataset Exporter (LeRobot Parquet)"]
 ```
 
 ---
 
-## 2. Modules Détaillés
+## 2. Pipeline Subsystems
 
-### Module 1 : Ingestion et Crible Sémantique
-* **Entrée :** URL YouTube ou ID de vidéo.
-* **Moteur :** `yt-dlp` pour le téléchargement 720p/1080p, couplé à une analyse par VLM (Gemini 1.5 Flash / Qwen-VL) avec échantillonnage à 1 image/sec.
-* **Sortie :** Timestamps stricts `[t_start, t_end]`, verbe d'action, nom de l'objet manipulé, statut de la caméra (fixe/mobile).
+### Module 1: Action Slicer & Semantic Classifier (`src/ingestion/`)
+* **Objective:** Ingest raw video and produce discrete, continuous sub-videos of physical tool manipulation, paired with structured metadata.
+* **Outputs per Action Event:**
+  - `data/clips/<video_id>_action_<id>.mp4` (encoded in H.264, standard 30 fps).
+  - `data/clips/<video_id>_action_<id>.json` containing:
+    - `t_start` and `t_end` timestamps.
+    - High-level intent ("What is the person doing?").
+    - Action verbs (e.g., `insert_key`, `rotate_cylinder`, `drive_screw`).
+    - Tool and workpiece identities.
+    - Camera motion and quality score.
 
-### Module 2 : Extraction de Poses Conjointes
-* **Main :** Modèle **HaMeR** extrayant les paramètres du modèle MANO (21 articulations + maillage de 778 sommets).
-* **Objet / Outil :** Segmentation par **SAM 2** (Segment Anything 2) et appariement avec des modèles CAO canoniques (Objaverse / ShapeNet) via descripteurs d'apparence DINOv2.
-* **Mire Métrique :** Utilisation de la taille connue des objets rigides (vis standard, poignée d'outil, barillet de cadenas) pour lever l'ambiguïté d'échelle métrique monoculaire.
+### Module 2: Joint Pose & Geometry Recovery (`src/pose_extraction/`)
+* **3D Hand Tracking:** Fits MANO hand parameters (21 joints, 778 vertices) per frame.
+* **Tool Pose & CAD Matching:** Tracks the tool via SAM 2 masks and aligns with canonical rigid CAD primitives (cylinders, boxes, standardized fastener meshes).
+* **Metric Scale Grounding:** Uses standardized dimensions of known objects (e.g., standard screws, lock cylinders) to resolve the monocular depth ambiguity.
 
-### Module 3 : Optimisation Conjointe (Contact & Non-Pénétration)
-* **Formulation :** Problème d'optimisation non linéaire sous contraintes géométriques :
-  $$\min_{\theta_{\text{hand}}, T_{\text{obj}}} L_{\text{reproj}} + \lambda_1 L_{\text{SDF}} + \lambda_2 L_{\text{contact}}$$
-* **Contrainte SDF :** Interdiction aux sommets de la main de pénétrer le volume intérieur du solide rigide ($\text{SDF}_{\text{obj}}(p) \ge 0$).
-* **Contrainte de Contact :** Attraction locale des points de préhension sur la surface d'affordance de l'outil pendant les phases de déplacement.
+### Module 3: Physical Contact & SDF Sanitizer (`src/physics_sanitizer/`)
+* **Collision Penalty:** Computes Signed Distance Field (SDF) of the tool mesh; forces hand vertices outside the tool volume ($\text{SDF}(v) \ge 0$).
+* **Contact Manifold:** Enforces fingertip attachment to the affordance surface during active tool motion.
 
-### Module 4 : Dynamique Inverse & Prior Physique
-* **Cinématique :** Dérivation des profils de vitesse $\dot{q}$ et d'accélération $\ddot{q}$.
-* **Estimation de Masse :** Combinaison des compensations posturales (mouvements du bras/torse) et des priors sémantiques (base de connaissances de masse moyenne).
+### Module 4: Inverse Dynamics Engine (`src/dynamics/`)
+* **Kinematics Derivation:** Computes velocities $\dot{q}$ and accelerations $\ddot{q}$.
+* **Mass & Force Estimation:** Combines body posture lean, jerk profiles, and semantic priors to estimate workpiece mass and contact forces.
 
-### Module 5 : Filtre de Faisabilité URDF
-* **Cinématique Inverse (IK) :** Résolution par solveurs numériques (`Pinocchio` / `PyBullet`).
-* **Vérification :** Butées angulaires, limites de vitesse articulaire, singularités mécaniques.
-* **Score de Rejet Automatique :** Si le geste est physiquement impossible pour le modèle du robot humanoïde ou de la pince cible, la séquence est éliminée du dataset final.
+### Module 5: URDF Feasibility Auditor (`src/feasibility/`)
+* **Numerical Inverse Kinematics:** Resolves target robot joint configurations using Pinocchio / PyBullet.
+* **Automated Screening:** Flags mechanical singularities, velocity spikes, and joint over-extensions. Discards non-retargetable trajectories.
 
-### Module 6 : Packaging & Standardisation
-* **Format cible :** Schéma **LeRobot** (Parquet / Arrow / HDF5).
-* Métadonnées complètes : trajectoire 6D de l'effecteur/outil, pose des doigts, bounding boxes 3D, états pré/post-conditions, score de confiance.
-
----
-
-## 3. Schéma de Stockage et Répertoires
-
-```
-Pose/
-├── data/
-│   ├── raw/              # Vidéos YouTube brutes téléchargées
-│   ├── clips/            # Segments découpés de 5 à 15 secondes
-│   └── processed/        # Trajectoires 3D, meshes et datasets LeRobot
-├── doc/
-│   ├── agents.md         # Rôles et responsabilités des agents IA
-│   ├── objectifs.md      # Vision, métriques et KPIs
-│   ├── roadmap.md        # Jalons et étapes d'implémentation
-│   └── architecture.md   # Spécifications techniques et flux de données
-├── models/
-│   ├── cad/              # Modèles 3D CAO standards d'outils et objets
-│   └── urdf/             # Fichiers URDF des robots cibles (Aloha, H1, etc.)
-├── scratch/              # Scripts de test exploratoires, spikes et PoCs locaux
-├── scripts/
-│   ├── gcp/              # Scripts de batch processing et déploiement cloud
-│   └── setup_env.py      # Script de vérification et préparation d'environnement
-└── src/
-    ├── ingestion/        # Téléchargement et découpage temporel
-    ├── pose_extraction/  # Inférence HaMeR et SAM 2
-    ├── physics_sanitizer/# Optimisation SDF et résolution de contact
-    ├── feasibility/      # Solveur IK et filtre de rejet URDF
-    └── exporter/         # Formatage LeRobot et connecteur Rerun.io
-```
+### Module 6: Dataset Packaging (`src/exporter/`)
+* **Format:** Apache Parquet / Arrow schemas compatible with Hugging Face **LeRobot**.
+* **Visual Inspection:** Synchronized logging with Rerun.io.

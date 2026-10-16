@@ -1,44 +1,44 @@
-# Roadmap de Développement : Video-to-Physical-Digital-Twin
+# Development Roadmap: Praxis (V2PDT)
 
-Cette feuille de route détaille les 5 phases de mise en œuvre, du prototype local sur PC jusqu'au passage à l'échelle sur Google Cloud Platform (GCP).
-
----
-
-## Phase 1 : Socle, Ingestion & Données Pilotes (Semaine 1)
-- [x] Initialisation du dépôt Git, arborescence (`data/`, `doc/`, `scratch/`, `scripts/gcp/`, `src/`).
-- [x] Spécification complète (`doc/objectifs.md`, `doc/architecture.md`, `doc/agents.md`, `doc/roadmap.md`).
-- [ ] Téléchargement d'un lot pilote de vidéos représentatives dans `data/raw/` (LockPickingLawyer, iFixit).
-- [ ] Création du script de découpage sémantique assisté par VLM (`src/ingestion/slicer.py`).
-- [ ] Validation du pipeline de découpage en segments d'actions de 5 à 15 secondes (`data/clips/`).
+This roadmap outlines the 5 execution phases of Praxis, progressing from local workstation prototyping to scaled cloud processing on Google Cloud Platform (GCP).
 
 ---
 
-## Phase 2 : Extraction Cinématique & Visualisation (Semaine 2)
-- [ ] Intégration de l'extraction de pose de main (HaMeR / MANO) dans `src/pose_extraction/`.
-- [ ] Intégration du tracking d'outil et masque 2D/3D (SAM 2).
-- [ ] Mise en place du visualiseur synchronisé avec **Rerun.io** pour inspecter en temps réel la vidéo à gauche et le squelette 3D à droite.
-- [ ] Calibration de l'échelle métrique monoculaire par rapport aux dimensions standardisées des outils/objets.
+## Phase 1: Foundation, Video Slicing & Pilot Data (Current)
+- [x] Repository initialization, structure (`data/`, `doc/`, `scratch/`, `scripts/gcp/`, `src/`).
+- [x] Core collaboration guidelines and architecture specifications (`AGENTS.md`, `doc/*.md`).
+- [x] Ingestion of reference YouTube target videos into `data/raw/` (LockPickingLawyer, iFixit, horology, DIY).
+- [ ] Automated sub-video extraction pipeline: slicing continuous manipulation segments into `data/clips/*.mp4`.
+- [ ] Structured metadata generation ("What is the person doing?", tool IDs, action verbs).
 
 ---
 
-## Phase 3 : Assainissement Physique des Contacts (Semaine 3)
-- [ ] Développement du module d'optimisation sans interpénétration (`src/physics_sanitizer/sdf_optimizer.py`).
-- [ ] Modélisation de la contrainte de contact et force-closure sur les phases de manipulation.
-- [ ] Benchmark "Avant / Après" assainissement sur les trajectoires de préhension d'un outil rigide.
-- [ ] Export des trajectoires assainies au format standard **LeRobot** (Parquet / Arrow).
+## Phase 2: Kinematic Extraction & 3D Visualization
+- [ ] Integration of 3D hand mesh recovery (HaMeR / MANO) in `src/pose_extraction/`.
+- [ ] Tracking and 2D/3D segmentation of manipulated tools via SAM 2.
+- [ ] Real-time synchronized inspection viewer via **Rerun.io** (RGB video alongside interactive 3D skeleton).
+- [ ] Monocular metric scale calibration anchored against known CAD tool dimensions.
 
 ---
 
-## Phase 4 : Filtre de Faisabilité Robot & Validation MuJoCo (Semaine 4)
-- [ ] Intégration des fichiers URDF de référence (ex: bras ALOHA / pince 2 doigts et main anthropomorphe type Unitree/Fourier).
-- [ ] Solveur cinématique inverse (IK) pour calculer le score de faisabilité mécanique (`src/feasibility/urdf_filter.py`).
-- [ ] Injection automatique de la scène virtuelle et de la trajectoire dans un environnement de test **MuJoCo**.
-- [ ] Établissement du filtre de rejet automatique (rejet sans intervention humaine si instabilité physique ou singularité).
+## Phase 3: Physical Contact & Penetration Sanitization
+- [ ] Differentiable Signed Distance Field (SDF) constraint solver (`src/physics_sanitizer/sdf_optimizer.py`).
+- [ ] Enforcement of force-closure contact manifolds during active tool grasp phases.
+- [ ] "Before vs. After" benchmark showing elimination of mesh collision and floating grasps.
+- [ ] Export of sanitized demonstrations to Hugging Face **LeRobot** format (Parquet / Arrow).
 
 ---
 
-## Phase 5 : Industrialisation & Scaling Cloud (Google Cloud Platform)
-- [ ] Conteneurisation Docker complète avec support GPU NVIDIA (CUDA).
-- [ ] Scripts de traitement batch sur **Google Cloud Run** ou instances **GCE avec GPU (L4 / T4)** (`scripts/gcp/`).
-- [ ] Automatisation du pipeline d'ingestion massive via des playlists YouTube ciblées.
-- [ ] Publication de la première version du dataset open-source validé sur le hub Hugging Face.
+## Phase 4: Robot Feasibility Filtering & MuJoCo Verification
+- [ ] Target robot URDF model integration (ALOHA bi-manual arm, Unitree H1 humanoid).
+- [ ] Numerical Inverse Kinematics (IK) feasibility auditor (`src/feasibility/urdf_filter.py`).
+- [ ] Direct simulation replay in **MuJoCo** to verify dynamic stability without numerical explosion.
+- [ ] Automated rejection filter: sequences with $> 2\%$ unrecoverable errors are discarded with zero human overhead.
+
+---
+
+## Phase 5: Cloud Scale & Dataset Release (Google Cloud Platform)
+- [ ] Docker containerization with NVIDIA CUDA acceleration.
+- [ ] Batch processing pipeline for Google Compute Engine (L4/T4 GPUs) / Cloud Run Jobs (`scripts/gcp/`).
+- [ ] Automated harvesting across prioritized YouTube playlists.
+- [ ] First public release of certified manipulation dataset on Hugging Face Hub.
