@@ -1,0 +1,25 @@
+{
+  "clip_file": "LPL_MasterLock_No3_clip_40s_50s.mp4",
+  "source_raw_video": "LPL_MasterLock_No3.mp4",
+  "timing": {
+    "t_start_seconds": 40.0,
+    "t_end_seconds": 50.0,
+    "duration_seconds": 10.04,
+    "fps": 29.97,
+    "total_frames": 301
+  },
+  "action_annotation": {
+    "what_is_the_person_doing": "Hand manipulation sequence",
+    "action_verb": "manipulate",
+    "target_tool": "tool",
+    "target_workpiece": "object",
+    "hand_engagement": "bi-manual",
+    "camera_context": "static_macro"
+  },
+  "physical_affordances": {},
+  "next_pipeline_stages": [
+    "src.pose_extraction.hand_mesh",
+    "src.physics_sanitizer.sdf_optimizer",
+    "src.feasibility.urdf_auditor"
+  ]
+}

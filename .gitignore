@@ -25,6 +25,10 @@ share/python-wheels/
 .installed.cfg
 *.egg
 
+# Scratch / Spike temporary files
+scratch/
+scratch/*
+
 # Virtual environments
 venv/
 .venv/

@@ -77,7 +77,12 @@ Each processed demonstration includes the verified 3D mesh (`.obj`), structured 
    * `06_singer_sewingmachine_scene_3d.obj`: 828 vertices, 1,608 faces (cast iron machine head, filigree faceplate, needle/presser bar, bimanual gloved contacts).
    * `06_singer_sewingmachine_metadata.json`: Bimanual opposing grip with 9.5N outward detachment vector.
    * `06_singer_sewingmachine_metadata.parquet`: 276 frames, 10 columns.
-   * `assets/images/06_singer_sewingmachine_comparison.jpg` & `assets/images/06_singer_sewingmachine_animation.gif`.
+4. **Master Lock No. 3 Bypass Decoding** (`07_lpl_masterlock`):
+   * `07_lpl_masterlock_scene_3d.obj`: 1,262 vertices, 2,480 faces (laminated steel padlock body, red bumper, open shackle, bypass decoder needle, precision pinch grip).
+   * `07_lpl_masterlock_metadata.json`: Precision insertion LeRobot schema with 1.8N insertion thrust.
+   * `07_lpl_masterlock_metadata.parquet`: 300 frames, 10 columns.
+   * `assets/images/07_lpl_masterlock_end_to_end_comparison.jpg`: 3-panel still comparison (Video vs. 3D Twin vs. ALOHA Robot Gripper).
+   * `assets/images/07_lpl_masterlock_end_to_end_animation.gif`: Dynamic 3-panel continuous execution animation.
 
 ### D. Core Codebase Modules (`src/`)
 * `src/ingestion/slicer.py`: Slices continuous manipulation sub-videos (`.mp4`) and generates structured JSON metadata.
@@ -86,19 +91,20 @@ Each processed demonstration includes the verified 3D mesh (`.obj`), structured 
 * `src/pose_extraction/reconstruct_dropkey_scene.py`: Procedural 3D scene builder for Drop Key.
 * `src/pose_extraction/reconstruct_watch_scene.py`: Procedural 3D scene builder for horology gear micro-extraction.
 * `src/pose_extraction/reconstruct_singer_scene.py`: Procedural 3D scene builder for antique restoration faceplate detachment.
+* `src/pose_extraction/reconstruct_masterlock_scene.py`: Procedural 3D scene builder for Master Lock bypass decoding.
 * `src/feasibility/urdf_auditor.py`: Kinematic feasibility auditor with ALOHA ViperX, Unitree H1, and Franka Panda IK verification and automated rejection threshold ($\ge 85\%$).
 * `src/feasibility/mujoco_verifier.py`: Automated MuJoCo physics simulation verifier executing forward dynamics to certify stability and contact compliance without numerical explosion.
 * `src/dynamics/inverse_dynamics.py`: Visual inverse dynamics engine computing mass from material density, 3D inertia tensors, trajectory acceleration, and Coulomb friction normal forces.
 * `src/exporter/lerobot_exporter.py`: Hugging Face LeRobot Apache Parquet serializer with schema validation.
 * `src/pipeline.py`: Main CLI orchestrator connecting all modules end-to-end.
-* `scripts/render_visual_assets.py`: Automatic visual comparison JPEG and 360° animation GIF renderer.
+* `scripts/render_end_to_end_robot_pipeline.py`: 3-panel dynamic animation and comparison JPEG renderer.
 
 ### E. Automated Test Suite (`tests/`) — 100% Passing
-29 automated unit and integration tests passing in `pytest` (`py -m pytest tests/ -v`):
+30 automated unit and integration tests passing in `pytest` (`py -m pytest tests/ -v`):
 * `tests/test_slicer.py` (2 tests)
 * `tests/test_inspector.py` (3 tests)
 * `tests/test_geometry_and_contacts.py` (3 tests)
-* `tests/test_scene_reconstructions.py` (2 tests)
+* `tests/test_scene_reconstructions.py` (3 tests: Watch, Singer, MasterLock)
 * `tests/test_urdf_auditor.py` (6 tests)
 * `tests/test_mujoco_verifier.py` (1 test)
 * `tests/test_inverse_dynamics.py` (5 tests)
@@ -107,10 +113,13 @@ Each processed demonstration includes the verified 3D mesh (`.obj`), structured 
 * `tests/test_pipeline_e2e.py` (2 tests)
 
 ### F. Consolidated Documentation (`doc/`)
+All documentation files use uppercase `.md` naming:
 * [AGENTS.md](file:///c:/Silvere/Encours/Developpement/Praxis/AGENTS.md) : Root directives, automated rejection filter formulation, and coding standards.
-* [doc/architecture.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/architecture.md) : Master unified technical specification, mathematical models (SDF, friction cone, manipulability, MuJoCo), data schemas, and roadmap.
-* [doc/sources_and_provenance.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/sources_and_provenance.md) : Video attribution, timestamps, and software licenses.
-* [README.md](file:///c:/Silvere/Encours/Developpement/Praxis/README.md) : Project overview, side-by-side visual showcase, 360° orbit GIFs, and economic profitability analysis.
+* [doc/ARCHITECTURE.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/ARCHITECTURE.md) : Master unified technical specification, mathematical models (SDF, friction cone, manipulability, MuJoCo), data schemas, and roadmap.
+* [doc/THROUGHPUT_AND_UNIT_ECONOMICS.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/THROUGHPUT_AND_UNIT_ECONOMICS.md) : 7-stage attrition funnel ("The Reality Cliff"), VLM API fees, cloud infrastructure, and comparative data sourcing benchmark.
+* [doc/SOURCES_AND_PROVENANCE.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/SOURCES_AND_PROVENANCE.md) : Video attribution, timestamps, and software licenses.
+* [README.md](file:///c:/Silvere/Encours/Developpement/Praxis/README.md) : Public repository showcase with end-to-end 3-panel robot retargeting visuals and financial analysis.
+
 
 ---
 
