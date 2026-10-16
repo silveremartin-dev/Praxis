@@ -43,6 +43,8 @@ google-credentials*.json
 # Data and large model checkpoints
 data/raw/*
 !data/raw/.gitkeep
+data/clips/*
+!data/clips/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
 models/checkpoints/
