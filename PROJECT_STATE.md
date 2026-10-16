@@ -108,12 +108,12 @@ Mirrored test hierarchy directly reflecting `src/` modules:
 * `tests/exporter/`: `test_lerobot_exporter.py` (3 tests), `test_lerobot_schema.py` (2 tests).
 * `tests/integration/`: `test_pipeline_e2e.py` (2 tests).
 
-### F. Consolidated Documentation (`doc/`)
+### F. Consolidated Documentation (`docs/`)
 All documentation files use uppercase `.md` naming:
 * [AGENTS.md](file:///c:/Silvere/Encours/Developpement/Praxis/AGENTS.md) : Root directives, automated rejection filter formulation, and coding standards.
-* [doc/ARCHITECTURE.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/ARCHITECTURE.md) : Master unified technical specification, mathematical models (SDF, friction cone, manipulability, MuJoCo), data schemas, and roadmap.
-* [doc/THROUGHPUT_AND_UNIT_ECONOMICS.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/THROUGHPUT_AND_UNIT_ECONOMICS.md) : 7-stage attrition funnel ("The Reality Cliff"), VLM API fees, cloud infrastructure, and comparative data sourcing benchmark.
-* [doc/SOURCES_AND_PROVENANCE.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/SOURCES_AND_PROVENANCE.md) : Video attribution, timestamps, and software licenses.
+* [docs/ARCHITECTURE.md](file:///c:/Silvere/Encours/Developpement/Praxis/docs/ARCHITECTURE.md) : Master unified technical specification, mathematical models (SDF, friction cone, manipulability, MuJoCo), data schemas, and roadmap.
+* [docs/THROUGHPUT_AND_UNIT_ECONOMICS.md](file:///c:/Silvere/Encours/Developpement/Praxis/docs/THROUGHPUT_AND_UNIT_ECONOMICS.md) : 7-stage attrition funnel ("The Reality Cliff"), VLM API fees, cloud infrastructure, and comparative data sourcing benchmark.
+* [docs/SOURCES_AND_PROVENANCE.md](file:///c:/Silvere/Encours/Developpement/Praxis/docs/SOURCES_AND_PROVENANCE.md) : Video attribution, timestamps, and software licenses.
 * [README.md](file:///c:/Silvere/Encours/Developpement/Praxis/README.md) : Public repository showcase with end-to-end 3-panel robot retargeting visuals and financial analysis.
 
 

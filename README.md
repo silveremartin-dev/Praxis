@@ -35,7 +35,7 @@ Praxis extracts the primary affordance trajectory from monocular video, optimize
 
 A realistic financial analysis must account for the **7-stage attrition funnel ("The Reality Cliff")**, where **over 98% of raw uncurated YouTube video time is automatically rejected** (unstable camera, palm occlusions, monocular depth ambiguity, URDF workspace limits).
 
-*Full analytical breakdown in [doc/THROUGHPUT_AND_UNIT_ECONOMICS.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/THROUGHPUT_AND_UNIT_ECONOMICS.md).*
+*Full analytical breakdown in [docs/THROUGHPUT_AND_UNIT_ECONOMICS.md](file:///c:/Silvere/Encours/Developpement/Praxis/docs/THROUGHPUT_AND_UNIT_ECONOMICS.md).*
 
 ```
 Raw YouTube Streams (100% Volume / 1,000 hrs)
@@ -79,7 +79,7 @@ Praxis/
 │   ├── clips/                      # Action sub-videos (.mp4) & semantic metadata (.json)
 │   └── processed/                  # Certified 3D scenes (.obj) & LeRobot datasets (.parquet)
 │
-├── doc/
+├── docs/
 │   ├── ARCHITECTURE.md             # Consolidated Master Technical Specification & Mathematics
 │   ├── THROUGHPUT_AND_UNIT_ECONOMICS.md # Grounded attrition funnel & financial benchmark
 │   └── SOURCES_AND_PROVENANCE.md   # Video sources, timestamps & MIT licensing terms
@@ -136,7 +136,7 @@ py -m pytest tests/ -v
 
 ## 📖 Master Documentation
 * Read [AGENTS.md](file:///c:/Silvere/Encours/Developpement/Praxis/AGENTS.md) for architectural philosophy and agent rules.
-* Read [doc/ARCHITECTURE.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/ARCHITECTURE.md) for mathematical formulations (SDF, Coulomb friction, Yoshikawa manipulability, MuJoCo forward stability).
-* Read [doc/THROUGHPUT_AND_UNIT_ECONOMICS.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/THROUGHPUT_AND_UNIT_ECONOMICS.md) for complete attrition funnel math and comparative cost analysis.
+* Read [docs/ARCHITECTURE.md](file:///c:/Silvere/Encours/Developpement/Praxis/docs/ARCHITECTURE.md) for mathematical formulations (SDF, Coulomb friction, Yoshikawa manipulability, MuJoCo forward stability).
+* Read [docs/THROUGHPUT_AND_UNIT_ECONOMICS.md](file:///c:/Silvere/Encours/Developpement/Praxis/docs/THROUGHPUT_AND_UNIT_ECONOMICS.md) for complete attrition funnel math and comparative cost analysis.
 * Read [PROJECT_STATE.md](file:///c:/Silvere/Encours/Developpement/Praxis/PROJECT_STATE.md) for historical memory and asset registry.
-* Read [doc/SOURCES_AND_PROVENANCE.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/SOURCES_AND_PROVENANCE.md) for video attributions and licensing.
+* Read [docs/SOURCES_AND_PROVENANCE.md](file:///c:/Silvere/Encours/Developpement/Praxis/docs/SOURCES_AND_PROVENANCE.md) for video attributions and licensing.

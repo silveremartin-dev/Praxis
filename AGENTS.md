@@ -68,7 +68,7 @@ All AI agents and developers implementing features in Praxis must respect the se
 
 ## 📄 4. Technical Documentation Standard
 
-* **Strict English Language Requirement**: ALL documentation (`README.md`, `doc/*.md`, `AGENTS.md`), code comments, docstrings, JSON schema definitions, and commit messages MUST be written strictly in English.
+* **Strict English Language Requirement**: ALL documentation (`README.md`, `docs/*.md`, `AGENTS.md`), code comments, docstrings, JSON schema definitions, and commit messages MUST be written strictly in English.
 * **Traceable Grounding**: All metadata must explicitly reference the source video timestamp, frame index, and metric bounding dimensions in millimeters.
 * **Standardized Formats**:
   - Sub-videos: H.264 MP4, 30 fps, preserved native aspect ratio.
