@@ -7,7 +7,7 @@ Automated engine transforming monocular in-the-wild web videos (YouTube) into co
 ## 📌 Repository Structure
 
 ```
-Pose/
+Praxis/
 ├── AGENTS.md                       # Core project philosophy, ROI filter & agent directives
 ├── README.md                       # Project overview & quick start
 ├── requirements.txt                # Python dependencies
@@ -21,7 +21,8 @@ Pose/
 │   ├── objectives.md               # Vision, success metrics (KPIs) & Operational Design Domain
 │   ├── subagents_architecture.md   # Subagent specifications, prompt patterns & inputs/outputs
 │   ├── roadmap.md                  # 5-phase execution plan (workstation to GCP)
-│   └── architecture.md             # Subsystem workflows, SDF formulation & data schemas
+│   ├── architecture.md             # Subsystem workflows, SDF formulation & data schemas
+│   └── sources_and_provenance.md   # Video sources, timestamps & licenses
 │
 ├── scratch/                        # Exploratory scripts, spikes, and visual renderers
 ├── scripts/
@@ -30,8 +31,9 @@ Pose/
     ├── ingestion/                  # Video download, frame sampling & action sub-video slicing
     ├── pose_extraction/            # 3D hand (MANO) & tool pose recovery
     ├── physics_sanitizer/          # SDF non-penetration & contact manifold optimizer
-    ├── feasibility/                # Numerical IK solver & robot URDF screening
-    ├── exporter/                   # LeRobot Parquet serialization & Rerun.io viewer
+    ├── dynamics/                   # Visual inverse dynamics (mass, inertia, grip forces)
+    ├── feasibility/                # Numerical IK solver & robot URDF screening (ALOHA, H1)
+    ├── exporter/                   # LeRobot Parquet serialization & dataset formatting
     └── pipeline.py                 # Central CLI pipeline orchestrator
 ```
 
@@ -51,13 +53,20 @@ py -m src.ingestion.slicer --video data/raw/01_LPL_DropKey_RRunwAI7N5Q.mp4 --t_s
 
 ### 3. Run End-to-End Pipeline
 ```bash
-py -m src.pipeline --input_dir data/raw --output_dir data/processed
+py src/pipeline.py --input_dir data/raw --output_dir data/processed
+```
+
+### 4. Run Test Suite
+```bash
+py -m pytest tests/ -v
 ```
 
 ---
 
 ## 📖 Key Documentation
-* Read [AGENTS.md](file:///c:/Silvere/Encours/Developpement/Pose/AGENTS.md) for architectural philosophy and agent rules.
-* Read [doc/objectives.md](file:///c:/Silvere/Encours/Developpement/Pose/doc/objectives.md) for project KPIs and scope boundaries.
-* Read [doc/architecture.md](file:///c:/Silvere/Encours/Developpement/Pose/doc/architecture.md) for system data flow and SDF physics formulations.
-* Read [doc/roadmap.md](file:///c:/Silvere/Encours/Developpement/Pose/doc/roadmap.md) for milestones.
+* Read [AGENTS.md](file:///c:/Silvere/Encours/Developpement/Praxis/AGENTS.md) for architectural philosophy and agent rules.
+* Read [doc/objectives.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/objectives.md) for project KPIs and scope boundaries.
+* Read [doc/architecture.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/architecture.md) for system data flow and SDF physics formulations.
+* Read [doc/roadmap.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/roadmap.md) for milestones.
+* Read [PROJECT_STATE.md](file:///c:/Silvere/Encours/Developpement/Praxis/PROJECT_STATE.md) for session memory and completed assets inventory.
+
