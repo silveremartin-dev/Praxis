@@ -51,9 +51,11 @@ flowchart TD
 * Splits raw continuous streams into autonomous manipulation sub-videos ($5-20\text{ s}$).
 * Generates structured task graph metadata (`t_start`, `t_end`, action verbs, tool ID, workpiece ID, camera stability).
 
-### Module 2: Parametric 3D Digital Twin Recovery (`src/pose_extraction/`)
-* Fits metric CAD primitives (cylinders, boxes, annuli) to tools and workpieces.
-* Establishes metric scale grounding using standardized dimensions of known rigid objects.
+### Module 2: Parametric 3D Digital Twin & Vision Extractor (`src/pose_extraction/`)
+* **Computer Vision Tracking (`extractor.py`)**: Generic OpenCV-driven `VideoPoseExtractor` running YCrCb skin segmentation, bimanual contour apex tracking, and chromatic marker exposure to extract 3D kinematic trajectories directly from monocular video frames.
+* **Continuous Anatomical Human Hand Model (`hand_model.py`)**: 100% topologically connected kinematic tree (metacarpal palmar arch, thenar eminence web, and analytical 2-bone IK solver `solve_two_bone_ik` for thumb and index fingertip target tracking with zero detached segments).
+* **Dexterous 5-Finger Humanoid Robot Hands (`hand_model.py`)**: Anthropomorphic robotic hands (`DexterousRobotHandModel`) with titanium palm chassis, rotary gold CMC thumb actuators, mechanical phalanges, and cyan tactile sensor pads for end-to-end dexterous robot simulation (Inspire / Unitree H1 / Optimus).
+* **Parametric CAD Builder (`cad_primitives.py`)**: Declarative parametric assembly generator constructing multi-part compound assemblies (laminated padlocks, keys, watch plates, antique faceplates) with metric scale grounding.
 
 ### Module 3: Analytical SDF Collision Arbitrator (`src/physics_sanitizer/`)
 * Enforces exact non-penetration penalty $\text{SDF}(p) \ge 0$ for rigid primitives:

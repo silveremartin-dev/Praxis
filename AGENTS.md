@@ -92,3 +92,12 @@ All AI agents and developers implementing features in Praxis must respect the se
    - Solves numerical IK against target robot configurations; computes feasibility score ($0-100\%$).
 6. **`DatasetExporter` (`src/exporter/`)**:
    - Compiles trajectories into LeRobot-compatible Parquet files and visualizes them in Rerun.io.
+
+---
+
+## 🏗️ 6. Source & Test Separation Directives
+
+* **Domain-Agnostic Generic `src/`**: All modules in `src/` (`src/ingestion/`, `src/pose_extraction/`, `src/physics_sanitizer/`, `src/dynamics/`, `src/feasibility/`, `src/exporter/`, `src/pipeline.py`) MUST remain 100% generic, reusable, and free of video-specific procedural hardcoding.
+* **Mirrored `tests/` Hierarchy**: All scene-specific test fixtures, procedural benchmarks, and unit/integration tests MUST reside under `tests/` in packages mirroring `src/` (`tests/ingestion/`, `tests/pose_extraction/`, `tests/physics_sanitizer/`, `tests/dynamics/`, `tests/feasibility/`, `tests/exporter/`, `tests/integration/`).
+* **Continuous Anatomical & Robotic Hands**: Hand models must enforce continuous kinematic connectivity (palmar web, thenar eminence, CMC-to-distal-phalanx chains with zero floating segments) and provide unified retargeting to 5-fingered anthropomorphic humanoid robot hands (`DexterousRobotHandModel`).
+

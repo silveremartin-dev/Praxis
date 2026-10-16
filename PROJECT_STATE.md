@@ -77,40 +77,36 @@ Each processed demonstration includes the verified 3D mesh (`.obj`), structured 
    * `06_singer_sewingmachine_scene_3d.obj`: 828 vertices, 1,608 faces (cast iron machine head, filigree faceplate, needle/presser bar, bimanual gloved contacts).
    * `06_singer_sewingmachine_metadata.json`: Bimanual opposing grip with 9.5N outward detachment vector.
    * `06_singer_sewingmachine_metadata.parquet`: 276 frames, 10 columns.
-4. **Master Lock No. 3 Bypass Decoding** (`07_lpl_masterlock`):
-   * `07_lpl_masterlock_scene_3d.obj`: 1,262 vertices, 2,480 faces (laminated steel padlock body, red bumper, open shackle, bypass decoder needle, precision pinch grip).
-   * `07_lpl_masterlock_metadata.json`: Precision insertion LeRobot schema with 1.8N insertion thrust.
+4. **Master Lock No. 3 Bypass, Tool Release & Index Pointing** (`07_lpl_masterlock`):
+   * `07_lpl_masterlock_scene_3d.obj`: Coherent 3D assembly (8,192 vertices, 15,484 faces: laminated steel body, red Master bumper, open shackle pivoted 180° left, brass key in cylinder).
+   * `07_lpl_masterlock_metadata.json`: Full 5-phase LeRobot schema (approach, horizontal slide, partial withdrawal, left thumb slide + needle drop, right index pointing/tapping).
    * `07_lpl_masterlock_metadata.parquet`: 300 frames, 10 columns.
-   * `assets/images/07_lpl_masterlock_end_to_end_comparison.jpg`: 3-panel still comparison (Video vs. 3D Twin vs. ALOHA Robot Gripper).
-   * `assets/images/07_lpl_masterlock_end_to_end_animation.gif`: Dynamic 3-panel continuous execution animation.
+   * `assets/images/07_lpl_masterlock_end_to_end_comparison.jpg`: 3-panel comparison (Video vs. Connected 5-Finger Human Twin vs. Bimanual 5-Finger Dexterous Robot Hands).
+   * `assets/images/07_lpl_masterlock_end_to_end_animation.gif`: Slowed 30-frame continuous execution GIF @ 4 FPS.
+   * `assets/images/07_lpl_masterlock_frame_decomposition.jpg`: 6-stage frame-by-frame decomposition grid covering all 5 gesture phases.
 
-### D. Core Codebase Modules (`src/`)
+### D. Generic Core Codebase Modules (`src/`) — Zero Video Hardcoding
 * `src/ingestion/slicer.py`: Slices continuous manipulation sub-videos (`.mp4`) and generates structured JSON metadata.
 * `src/ingestion/inspector.py`: Reads video stream properties (FPS, resolution, duration) and samples keyframes.
+* `src/pose_extraction/extractor.py`: Generic OpenCV-driven `VideoPoseExtractor` tracking skin segmentation, bimanual contour apexes, chromatic markers, and gesture state machines.
+* `src/pose_extraction/hand_model.py`: Continuous `AnatomicalHandModel` (with palmar arch and analytical 2-bone IK `solve_two_bone_ik`) & `DexterousRobotHandModel` (5-finger anthropomorphic robot hands).
+* `src/pose_extraction/cad_primitives.py`: Declarative `ParametricCADBuilder` for compound rigid assemblies and tools.
 * `src/physics_sanitizer/sdf.py`: Exact analytical Signed Distance Field solvers ($O(1)$) for cylinders, boxes, and spheres enforcing zero surface penetration.
-* `src/pose_extraction/reconstruct_dropkey_scene.py`: Procedural 3D scene builder for Drop Key.
-* `src/pose_extraction/reconstruct_watch_scene.py`: Procedural 3D scene builder for horology gear micro-extraction.
-* `src/pose_extraction/reconstruct_singer_scene.py`: Procedural 3D scene builder for antique restoration faceplate detachment.
-* `src/pose_extraction/reconstruct_masterlock_scene.py`: Procedural 3D scene builder for Master Lock bypass decoding.
 * `src/feasibility/urdf_auditor.py`: Kinematic feasibility auditor with ALOHA ViperX, Unitree H1, and Franka Panda IK verification and automated rejection threshold ($\ge 85\%$).
 * `src/feasibility/mujoco_verifier.py`: Automated MuJoCo physics simulation verifier executing forward dynamics to certify stability and contact compliance without numerical explosion.
 * `src/dynamics/inverse_dynamics.py`: Visual inverse dynamics engine computing mass from material density, 3D inertia tensors, trajectory acceleration, and Coulomb friction normal forces.
 * `src/exporter/lerobot_exporter.py`: Hugging Face LeRobot Apache Parquet serializer with schema validation.
 * `src/pipeline.py`: Main CLI orchestrator connecting all modules end-to-end.
-* `scripts/render_end_to_end_robot_pipeline.py`: 3-panel dynamic animation and comparison JPEG renderer.
 
-### E. Automated Test Suite (`tests/`) — 100% Passing
-30 automated unit and integration tests passing in `pytest` (`py -m pytest tests/ -v`):
-* `tests/test_slicer.py` (2 tests)
-* `tests/test_inspector.py` (3 tests)
-* `tests/test_geometry_and_contacts.py` (3 tests)
-* `tests/test_scene_reconstructions.py` (3 tests: Watch, Singer, MasterLock)
-* `tests/test_urdf_auditor.py` (6 tests)
-* `tests/test_mujoco_verifier.py` (1 test)
-* `tests/test_inverse_dynamics.py` (5 tests)
-* `tests/test_lerobot_exporter.py` (3 tests)
-* `tests/test_lerobot_schema.py` (2 tests)
-* `tests/test_pipeline_e2e.py` (2 tests)
+### E. Automated Test Suite (`tests/`) — 31/31 Passing (100%)
+Mirrored test hierarchy directly reflecting `src/` modules:
+* `tests/ingestion/`: `test_inspector.py` (3 tests), `test_slicer.py` (2 tests).
+* `tests/pose_extraction/`: `test_scene_reconstructions.py` (4 tests: Watch, Singer, MasterLock, plus generic `VideoPoseExtractor` and robot hands) and scene fixtures (`reconstruct_*_scene.py`).
+* `tests/physics_sanitizer/`: `test_geometry_and_contacts.py` (3 tests).
+* `tests/dynamics/`: `test_inverse_dynamics.py` (5 tests).
+* `tests/feasibility/`: `test_urdf_auditor.py` (6 tests), `test_mujoco_verifier.py` (1 test).
+* `tests/exporter/`: `test_lerobot_exporter.py` (3 tests), `test_lerobot_schema.py` (2 tests).
+* `tests/integration/`: `test_pipeline_e2e.py` (2 tests).
 
 ### F. Consolidated Documentation (`doc/`)
 All documentation files use uppercase `.md` naming:
