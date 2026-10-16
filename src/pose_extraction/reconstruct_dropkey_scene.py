@@ -1,8 +1,8 @@
 """
-Reconstruction 3D paramétrique et métadonnées de la scène LockPickingLawyer Drop Key.
-Produit :
-1. Un fichier 3D triangulé complet (.obj) avec les objets rigides et les points de contact des mains.
-2. Un fichier de métadonnées sémantiques et cinématiques (.json) conforme au schéma LeRobot.
+Parametric 3D scene reconstruction and metadata for LockPickingLawyer Drop Key.
+Produces:
+1. Complete triangulated 3D mesh (.obj) with rigid bodies and hand contact points.
+2. Semantic and kinematic metadata (.json) complying with LeRobot schema.
 """
 
 import json
@@ -26,48 +26,48 @@ def build_dropkey_scene(output_dir="data/processed"):
     os.makedirs(output_dir, exist_ok=True)
     meshes = []
     
-    # 1. Établi / Plan de référence (Tableau gris studio)
+    # 1. Workbench / Reference plane (dark studio grey)
     table = create_box(extents=[300, 200, 5])
     table.apply_translation([0, 0, -2.5])
-    table.visual.face_colors = [70, 75, 80, 255] # Gris foncé studio
+    table.visual.face_colors = [70, 75, 80, 255] # Studio dark grey
     meshes.append(table)
     
-    # 2. Outil Drop Key - Tige principale (horizontal le long de l'axe X)
-    # Longueur 120mm, rayon 4mm (acier inoxydable)
+    # 2. Drop Key tool - Main stem (horizontal along X axis)
+    # Length 120mm, radius 4mm (stainless steel)
     stem = create_cylinder(radius=4.0, height=120.0)
-    # Rotation pour aligner selon l'axe X
+    # Rotation to align with X axis
     R_y = trimesh.transformations.rotation_matrix(np.pi / 2, [0, 1, 0])
     stem.apply_transform(R_y)
-    stem.apply_translation([0, 0, 30]) # Élevé à 30mm au-dessus de la table
-    stem.visual.face_colors = [180, 185, 190, 255] # Métal brillant
+    stem.apply_translation([0, 0, 30]) # Elevated 30mm above table
+    stem.visual.face_colors = [180, 185, 190, 255] # Polished metal
     meshes.append(stem)
     
-    # 3. Collier de butée noir (sur la tige principale)
+    # 3. Black stop collar (mounted on main stem)
     collar = create_cylinder(radius=6.5, height=10.0)
     collar.apply_transform(R_y)
     collar.apply_translation([25, 0, 30])
-    collar.visual.face_colors = [25, 25, 25, 255] # Noir mat
+    collar.visual.face_colors = [25, 25, 25, 255] # Matte black
     meshes.append(collar)
     
-    # 4. Anneau d'extrémité (diamètre 25mm)
+    # 4. End ring (diameter 25mm)
     ring = trimesh.creation.annulus(r_min=10.0, r_max=12.5, height=2.0, sections=32)
     ring.apply_transform(R_y)
     ring.apply_translation([60, 0, 30])
     ring.visual.face_colors = [190, 190, 200, 255]
     meshes.append(ring)
     
-    # 5. Articulation mobile (Drop Link articulé à 90 degrés vers le bas)
-    # Longueur 45mm, rayon 4mm
+    # 5. Articulated drop link (folded 90 degrees downward)
+    # Length 45mm, radius 4mm
     link = create_cylinder(radius=4.0, height=45.0)
-    link.apply_translation([-60, 0, 30 - 22.5]) # Chute verticale à partir du pivot
+    link.apply_translation([-60, 0, 30 - 22.5]) # Vertical drop from pivot
     link.visual.face_colors = [160, 165, 170, 255]
     meshes.append(link)
     
-    # 6. Contact Main Droite (Grasp de précision à 3 doigts sur la tige)
-    # Pouce (face avant), Index/Majeur (face arrière/dessus)
+    # 6. Right Hand Contact (3-finger precision pinch on stem)
+    # Thumb (front side), Index/Middle (rear/top side)
     thumb_contact = trimesh.creation.icosphere(subdivisions=2, radius=6.0)
     thumb_contact.apply_translation([45, 8, 32])
-    thumb_contact.visual.face_colors = [240, 160, 140, 200] # Chair
+    thumb_contact.visual.face_colors = [240, 160, 140, 200] # Flesh tone
     
     index_contact = trimesh.creation.icosphere(subdivisions=2, radius=5.5)
     index_contact.apply_translation([42, -8, 34])
@@ -75,26 +75,26 @@ def build_dropkey_scene(output_dir="data/processed"):
     
     meshes.extend([thumb_contact, index_contact])
     
-    # 7. Objet d'arrière-plan rigide : Verrou industriel en fonte (orange)
+    # 7. Rigid background object: Industrial sliding latch assembly (cast iron rust orange)
     latch_base = create_box(extents=[120, 50, 8])
     latch_base.apply_translation([-60, 60, 4])
-    latch_base.visual.face_colors = [200, 80, 40, 255] # Peinture orange rouille
+    latch_base.visual.face_colors = [200, 80, 40, 255] # Rust orange paint
     
     latch_bolt = create_box(extents=[140, 18, 6])
     latch_bolt.apply_translation([-50, 60, 10])
-    latch_bolt.visual.face_colors = [110, 100, 95, 255] # Acier vieilli
+    latch_bolt.visual.face_colors = [110, 100, 95, 255] # Aged steel
     meshes.extend([latch_base, latch_bolt])
     
-    # Fusion de la scène
+    # Scene merge
     scene = trimesh.Scene(meshes)
     
     # Export OBJ
     obj_path = os.path.join(output_dir, "01_lpl_dropkey_scene_3d.obj")
     combined = trimesh.util.concatenate(meshes)
     combined.export(obj_path)
-    print(f"[+] Scène 3D exportée avec succès : {obj_path} ({len(combined.vertices)} sommets, {len(combined.faces)} faces)")
+    print(f"[+] 3D scene successfully exported: {obj_path} ({len(combined.vertices)} vertices, {len(combined.faces)} faces)")
     
-    # Export Métadonnées LeRobot standardisées
+    # Export standardized LeRobot metadata
     metadata = {
         "dataset_name": "Pose_V2PDT_Pilot_01",
         "video_source": {
@@ -168,7 +168,7 @@ def build_dropkey_scene(output_dir="data/processed"):
     meta_path = os.path.join(output_dir, "01_lpl_dropkey_metadata.json")
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
-    print(f"[+] Métadonnées LeRobot exportées : {meta_path}")
+    print(f"[+] LeRobot metadata exported: {meta_path}")
     return obj_path, meta_path
 
 if __name__ == "__main__":

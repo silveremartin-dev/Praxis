@@ -60,42 +60,61 @@ Each sub-video is an autonomous MP4 clip paired with a standardized JSON task an
 * `05_Watch_Zodiac_f8NFSwb6VQ8_clip_595s_608s.mp4` + `.json` (13.01s, 390 frames): Tweezer extraction of miniature brass gear from jewel bearing.
 * `06_Singer_SewingMachine_BMNgIfLHfjk_clip_118s_129s.mp4` + `.json` (11.04s, 276 frames): Bimanual detachment of heavy cast-iron faceplate.
 
-### C. Tier 2 Physical 3D Reconstruction & Renders (`data/processed/`)
-* `01_lpl_dropkey_scene_3d.obj`: Complete 3D mesh (674 vertices, 1,316 faces) featuring workbench, cylindrical drop key stem, stop collar, ring, articulated link, and finger contact spheres.
-* `01_lpl_dropkey_metadata.json`: Full LeRobot-compliant state-action schema with contact vectors and metric dimensions.
-* `01_lpl_dropkey_render_3d.png`: High-resolution 3D isometric render preview.
+### C. Tier 2 Physical 3D Digital Twins & LeRobot Datasets (`data/processed/`)
+Each processed demonstration includes the verified 3D mesh (`.obj`), structured kinematic metadata (`.json`), and official Hugging Face LeRobot dataset table (`.parquet`):
+1. **Drop Key Demonstration** (`01_lpl_dropkey`):
+   * `01_lpl_dropkey_scene_3d.obj`: Complete 3D mesh (674 vertices, 1,316 faces).
+   * `01_lpl_dropkey_metadata.json`: LeRobot-compliant state-action schema with contact vectors and metric dimensions.
+   * `01_lpl_dropkey_metadata.parquet`: 255 frames, 10 columns (state, action, contact force, zero-penetration SDF, feasibility).
+   * `01_lpl_dropkey_render_3d.png`: High-resolution 3D isometric render preview.
+2. **Watchmaker Gear Extraction** (`05_watch_zodiac`):
+   * `05_watch_zodiac_scene_3d.obj`: 912 vertices, 1,780 faces (movement holder, mainplate, jewel bearing, pinion gear, #5 Dumont tweezers, stabilizing thumb).
+   * `05_watch_zodiac_metadata.json`: Micro-manipulation LeRobot schema with 0.45N tweezer grip forces.
+   * `05_watch_zodiac_metadata.parquet`: 390 frames, 10 columns.
+3. **Singer Faceplate Detachment** (`06_singer_sewingmachine`):
+   * `06_singer_sewingmachine_scene_3d.obj`: 828 vertices, 1,608 faces (cast iron machine head, filigree faceplate, needle/presser bar, bimanual gloved contacts).
+   * `06_singer_sewingmachine_metadata.json`: Bimanual opposing grip with 9.5N outward detachment vector.
+   * `06_singer_sewingmachine_metadata.parquet`: 276 frames, 10 columns.
 
 ### D. Core Codebase Modules (`src/`)
 * `src/ingestion/slicer.py`: Slices continuous manipulation sub-videos (`.mp4`) and generates structured JSON metadata.
 * `src/ingestion/inspector.py`: Reads video stream properties (FPS, resolution, duration) and samples keyframes.
 * `src/physics_sanitizer/sdf.py`: Exact analytical Signed Distance Field solvers ($O(1)$) for cylinders, boxes, and spheres enforcing zero surface penetration.
-* `src/pose_extraction/reconstruct_dropkey_scene.py`: Procedural 3D scene builder and LeRobot metadata exporter.
-* `src/pipeline.py`: Main CLI orchestrator.
+* `src/pose_extraction/reconstruct_dropkey_scene.py`: Procedural 3D scene builder for Drop Key.
+* `src/pose_extraction/reconstruct_watch_scene.py`: Procedural 3D scene builder for horology gear micro-extraction.
+* `src/pose_extraction/reconstruct_singer_scene.py`: Procedural 3D scene builder for antique restoration faceplate detachment.
+* `src/feasibility/urdf_auditor.py`: Kinematic feasibility auditor with ALOHA ViperX, Unitree H1, and Franka Panda IK verification and automated rejection threshold ($\ge 85\%$).
+* `src/dynamics/inverse_dynamics.py`: Visual inverse dynamics engine computing mass from material density, 3D inertia tensors, trajectory acceleration, and Coulomb friction normal forces.
+* `src/exporter/lerobot_exporter.py`: Hugging Face LeRobot Apache Parquet serializer with schema validation.
+* `src/pipeline.py`: Main CLI orchestrator connecting all modules end-to-end.
 
 ### E. Automated Test Suite (`tests/`) — 100% Passing
-12 automated unit and integration tests passing in `pytest`:
-* `tests/test_slicer.py`
-* `tests/test_inspector.py`
-* `tests/test_geometry_and_contacts.py`
-* `tests/test_lerobot_schema.py`
-* `tests/test_pipeline_e2e.py`
+28 automated unit and integration tests passing in `pytest` (`py -m pytest tests/ -v`):
+* `tests/test_slicer.py` (2 tests)
+* `tests/test_inspector.py` (3 tests)
+* `tests/test_geometry_and_contacts.py` (3 tests)
+* `tests/test_scene_reconstructions.py` (2 tests)
+* `tests/test_urdf_auditor.py` (6 tests)
+* `tests/test_inverse_dynamics.py` (5 tests)
+* `tests/test_lerobot_exporter.py` (3 tests)
+* `tests/test_lerobot_schema.py` (2 tests)
+* `tests/test_pipeline_e2e.py` (2 tests)
 
 ### F. Documentation (`doc/`)
-* [AGENTS.md](file:///c:/Silvere/Encours/Developpement/Pose/AGENTS.md) : Root directives and philosophy.
-* [doc/objectives.md](file:///c:/Silvere/Encours/Developpement/Pose/doc/objectives.md) : KPIs and Operational Design Domain.
-* [doc/architecture.md](file:///c:/Silvere/Encours/Developpement/Pose/doc/architecture.md) : System diagrams and data models.
-* [doc/roadmap.md](file:///c:/Silvere/Encours/Developpement/Pose/doc/roadmap.md) : 5-phase roadmap.
-* [doc/subagents_architecture.md](file:///c:/Silvere/Encours/Developpement/Pose/doc/subagents_architecture.md) : Subagent prompt and role specs.
-* [doc/sources_and_provenance.md](file:///c:/Silvere/Encours/Developpement/Pose/doc/sources_and_provenance.md) : Full video attribution and software licenses.
+* [AGENTS.md](file:///c:/Silvere/Encours/Developpement/Praxis/AGENTS.md) : Root directives and philosophy.
+* [doc/objectives.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/objectives.md) : KPIs and Operational Design Domain.
+* [doc/architecture.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/architecture.md) : System diagrams and data models.
+* [doc/roadmap.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/roadmap.md) : 5-phase roadmap.
+* [doc/subagents_architecture.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/subagents_architecture.md) : Subagent prompt and role specs.
+* [doc/sources_and_provenance.md](file:///c:/Silvere/Encours/Developpement/Praxis/doc/sources_and_provenance.md) : Full video attribution and software licenses.
 
 ---
 
 ## 4. Next Steps for Immediate Execution
 
-When the project folder is renamed to `Praxis`:
-1. Re-open terminal/IDE in the renamed path `c:\Silvere\Encours\Developpement\Praxis`.
-2. Run `pytest tests/ -v` to confirm environment integrity.
-3. Advance Tier 2:
-   - Implement automated 3D reconstruction for the watch gear extraction (`05_Watch_Zodiac`) and Singer faceplate (`06_Singer_SewingMachine`).
-   - Connect the URDF kinematic feasibility checker (`src/feasibility/urdf_auditor.py`) against ALOHA / Unitree H1 URDF models.
-   - Package all processed trajectories into Apache Parquet tables complying with Hugging Face LeRobot format.
+1. **Rerun.io 3D Visualizer Integration**:
+   - Add synchronized logging script (`scripts/visualize_rerun.py`) to stream RGB sub-video frames alongside interactive 3D scene meshes and robot end-effector trajectories in Rerun.io.
+2. **MuJoCo Verification (Phase 4)**:
+   - Generate MJCF XML environments for each 3D twin to test dynamic stability under forward simulation.
+3. **Cloud Batch Pipeline (Phase 5)**:
+   - Prepare Dockerfile with CUDA support and GCP Cloud Run Job script (`scripts/gcp/run_batch.sh`).
