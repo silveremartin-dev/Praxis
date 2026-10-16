@@ -8,12 +8,17 @@ Automated data-engineering engine transforming monocular in-the-wild web videos 
 
 Praxis extracts the primary affordance trajectory from monocular video, optimizes zero-penetration contact manifolds ($\text{SDF} \ge 0$), and retargets the gesture directly to humanoid and dual-arm robotic grippers (ALOHA, Unitree H1) with zero human intervention.
 
-### 1. Master Lock No. 3 — Shackle Bypass Decoding
-*Continuous 3D insertion of a spring steel bypass tool into an open padlock shackle cavity ($16\text{ mm}$ stroke), retargeted to ALOHA parallel gripper.*
+### 1. Master Lock No. 3 — Coherent Bimanual Shackle Bypass Decoding
+*Coherent 3D padlock assembly (laminated steel plates, red Master bumper, open shackle swung 180° left, bottom brass key) manipulated by articulated 5-finger bimanual human hands (with opposing thumbs) and retargeted to an ALOHA robot gripper.*
 
-| 3-Panel Still Comparison (Video vs. 3D Twin vs. Robot Retargeting) | Dynamic End-to-End Execution (GIF) |
+| 3-Panel Comparison (Video vs. Coherent 3D Twin vs. Robot Retargeting) | Slowed Continuous Execution (30 Frames @ 4 FPS) |
 | :---: | :---: |
 | ![Master Lock 3-Panel Comparison](assets/images/07_lpl_masterlock_end_to_end_comparison.jpg) | ![Master Lock End-to-End Animation](assets/images/07_lpl_masterlock_end_to_end_animation.gif) |
+
+#### Frame-by-Frame Kinematic Decomposition (6 Sequential Stages)
+*Shows continuous progression: (1) Diagonal approach with tilted top plate, (2) Horizontal alignment & insertion at shackle collar between Right Thumb and Index, and (3) Downward levering sweep while Left Thumb opposes the 4 rear fingers on the padlock face.*
+
+![Master Lock 6-Stage Frame Decomposition](assets/images/07_lpl_masterlock_frame_decomposition.jpg)
 
 ---
 
