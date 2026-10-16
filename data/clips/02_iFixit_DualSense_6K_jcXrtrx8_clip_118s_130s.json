@@ -1,0 +1,25 @@
+{
+  "clip_file": "02_iFixit_DualSense_6K_jcXrtrx8_clip_118s_130s.mp4",
+  "source_raw_video": "02_iFixit_DualSense_6K_jcXrtrx8.mp4",
+  "timing": {
+    "t_start_seconds": 118.0,
+    "t_end_seconds": 130.0,
+    "duration_seconds": 12.01,
+    "fps": 23.98,
+    "total_frames": 288
+  },
+  "action_annotation": {
+    "what_is_the_person_doing": "The technician compares the DualSense battery packs on the workbench and prepares the precision screwdriver for battery harness detachment.",
+    "action_verb": "manipulate",
+    "target_tool": "precision_screwdriver_and_tweezers",
+    "target_workpiece": "dualsense_controller_battery_module",
+    "hand_engagement": "bi-manual",
+    "camera_context": "static_macro"
+  },
+  "physical_affordances": {},
+  "next_pipeline_stages": [
+    "src.pose_extraction.hand_mesh",
+    "src.physics_sanitizer.sdf_optimizer",
+    "src.feasibility.urdf_auditor"
+  ]
+}

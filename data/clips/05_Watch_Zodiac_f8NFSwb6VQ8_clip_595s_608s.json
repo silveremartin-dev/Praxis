@@ -1,0 +1,25 @@
+{
+  "clip_file": "05_Watch_Zodiac_f8NFSwb6VQ8_clip_595s_608s.mp4",
+  "source_raw_video": "05_Watch_Zodiac_f8NFSwb6VQ8.mp4",
+  "timing": {
+    "t_start_seconds": 595.0,
+    "t_end_seconds": 608.0,
+    "duration_seconds": 13.01,
+    "fps": 29.97,
+    "total_frames": 390
+  },
+  "action_annotation": {
+    "what_is_the_person_doing": "The watchmaker uses fine tweezers in the right hand to delicately lift and extract a small brass gear from the chronograph mechanism while stabilizing the mainplate in the movement holder with the left thumb.",
+    "action_verb": "manipulate",
+    "target_tool": "precision_horology_tweezers_and_pegwood",
+    "target_workpiece": "chronograph_gear_and_jeweled_mainplate",
+    "hand_engagement": "bi-manual",
+    "camera_context": "static_macro"
+  },
+  "physical_affordances": {},
+  "next_pipeline_stages": [
+    "src.pose_extraction.hand_mesh",
+    "src.physics_sanitizer.sdf_optimizer",
+    "src.feasibility.urdf_auditor"
+  ]
+}

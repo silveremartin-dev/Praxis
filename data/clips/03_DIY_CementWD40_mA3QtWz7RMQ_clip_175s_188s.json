@@ -1,0 +1,25 @@
+{
+  "clip_file": "03_DIY_CementWD40_mA3QtWz7RMQ_clip_175s_188s.mp4",
+  "source_raw_video": "03_DIY_CementWD40_mA3QtWz7RMQ.mp4",
+  "timing": {
+    "t_start_seconds": 175.0,
+    "t_end_seconds": 188.0,
+    "duration_seconds": 13.03,
+    "fps": 30.0,
+    "total_frames": 391
+  },
+  "action_annotation": {
+    "what_is_the_person_doing": "The operator uses their left hand to firmly grasp and stabilize a standard aluminum can while the right hand drives a utility knife with index finger pressure along the circumference to slice through the metal casing.",
+    "action_verb": "manipulate",
+    "target_tool": "utility_cutter_knife",
+    "target_workpiece": "cylindrical_aluminum_can",
+    "hand_engagement": "bi-manual",
+    "camera_context": "static_macro"
+  },
+  "physical_affordances": {},
+  "next_pipeline_stages": [
+    "src.pose_extraction.hand_mesh",
+    "src.physics_sanitizer.sdf_optimizer",
+    "src.feasibility.urdf_auditor"
+  ]
+}

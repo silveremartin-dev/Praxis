@@ -1,0 +1,25 @@
+{
+  "clip_file": "01_LPL_DropKey_RRunwAI7N5Q_clip_18s_26s.mp4",
+  "source_raw_video": "01_LPL_DropKey_RRunwAI7N5Q.mp4",
+  "timing": {
+    "t_start_seconds": 18.0,
+    "t_end_seconds": 26.5,
+    "duration_seconds": 8.53,
+    "fps": 30.0,
+    "total_frames": 256
+  },
+  "action_annotation": {
+    "what_is_the_person_doing": "The demonstrator uses their right hand in a 3-finger precision pinch to hold the main shaft while the left hand gently supports and folds the articulated drop-link from 0 to 90 degrees.",
+    "action_verb": "manipulate",
+    "target_tool": "drop_key_rotational_tool",
+    "target_workpiece": "folding_pin_mechanism",
+    "hand_engagement": "bi-manual",
+    "camera_context": "static_macro"
+  },
+  "physical_affordances": {},
+  "next_pipeline_stages": [
+    "src.pose_extraction.hand_mesh",
+    "src.physics_sanitizer.sdf_optimizer",
+    "src.feasibility.urdf_auditor"
+  ]
+}

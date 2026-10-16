@@ -45,6 +45,7 @@ data/raw/*
 !data/raw/.gitkeep
 data/clips/*
 !data/clips/.gitkeep
+!data/clips/*.json
 data/processed/*
 !data/processed/.gitkeep
 models/checkpoints/
