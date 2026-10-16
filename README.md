@@ -8,15 +8,15 @@ Automated data-engineering engine transforming monocular in-the-wild web videos 
 
 Praxis extracts the primary affordance trajectory from monocular video, optimizes zero-penetration contact manifolds ($\text{SDF} \ge 0$), and retargets the gesture directly to humanoid and dual-arm robotic grippers (ALOHA, Unitree H1) with zero human intervention.
 
-### 1. Master Lock No. 3 — Coherent Bimanual Shackle Bypass Decoding
-*Coherent 3D padlock assembly (laminated steel plates, red Master bumper, open shackle swung 180° left, bottom brass key) manipulated by articulated 5-finger bimanual human hands (with opposing thumbs) and retargeted to an ALOHA robot gripper.*
+### 1. Master Lock No. 3 — Bimanual Bypass, Tool Release & Index Pointing
+*Coherent 3D padlock assembly (laminated steel plates, red Master bumper, open shackle swung 180° left, bottom brass key) manipulated by anatomically connected 5-finger bimanual human hands (with connected opposing thumbs) and retargeted to bimanual 5-finger dexterous humanoid robot hands (`DexterousRobotHandModel`).*
 
-| 3-Panel Comparison (Video vs. Coherent 3D Twin vs. Robot Retargeting) | Slowed Continuous Execution (30 Frames @ 4 FPS) |
+| 3-Panel Comparison (Video vs. Connected 3D Human Twin vs. 5-Finger Robot Hands) | Slowed Continuous Execution (30 Frames @ 4 FPS) |
 | :---: | :---: |
 | ![Master Lock 3-Panel Comparison](assets/images/07_lpl_masterlock_end_to_end_comparison.jpg) | ![Master Lock End-to-End Animation](assets/images/07_lpl_masterlock_end_to_end_animation.gif) |
 
-#### Frame-by-Frame Kinematic Decomposition (6 Sequential Stages)
-*Shows continuous progression: (1) Diagonal approach with tilted top plate, (2) Horizontal alignment & insertion at shackle collar between Right Thumb and Index, and (3) Downward levering sweep while Left Thumb opposes the 4 rear fingers on the padlock face.*
+#### Frame-by-Frame Kinematic Decomposition (6 Sequential Stages Across All 5 Gesture Phases)
+*Shows continuous progression: (1) Diagonal needle approach with tilted top plate (`F01`), (2) Horizontal collar insertion (`F07`) & deep leftward slide (`F12`), (3) Partial rightward withdrawal (`F16`), (4) Left thumb downward slide uncovering the red "Master" bumper while the right hand opens its pinch and drops the needle (`F18`), and (5) Right index finger pointing and tapping directly on the lower-right padlock face (`F26`).*
 
 ![Master Lock 6-Stage Frame Decomposition](assets/images/07_lpl_masterlock_frame_decomposition.jpg)
 
@@ -60,9 +60,9 @@ Raw YouTube Streams (100% Volume / 1,000 hrs)
 
 ---
 
-## 📌 Repository Structure
+## 📌 Repository Structure (Strict Separation of Generic `src/` vs. `tests/`)
 
-All documentation files use uppercase `.md` formatting for strict consistency:
+All documentation files use uppercase `.md` formatting, and `src/` is strictly separated from scene-specific test fixtures in `tests/`:
 
 ```
 Praxis/
@@ -72,7 +72,7 @@ Praxis/
 ├── requirements.txt                # Python dependencies
 │
 ├── assets/
-│   └── images/                     # Dynamic 3-panel GIFs and high-resolution comparison JPEGs
+│   └── images/                     # Dynamic 3-panel GIFs, frame decompositions & comparison JPEGs
 │
 ├── data/
 │   ├── raw/                        # Ingested raw YouTube video files (.mp4)
@@ -85,18 +85,27 @@ Praxis/
 │   └── SOURCES_AND_PROVENANCE.md   # Video sources, timestamps & MIT licensing terms
 │
 ├── scripts/
-│   ├── render_end_to_end_robot_pipeline.py # 3-panel dynamic animation & still renderer
+│   ├── render_end_to_end_robot_pipeline.py # 3-panel dynamic animation & frame decomposition renderer
 │   ├── render_visual_assets.py     # 360° orbit renderer
 │   └── gcp/                        # Scaled batch execution scripts for Google Cloud Platform
 │
-└── src/
-    ├── ingestion/                  # Video download, frame sampling & action sub-video slicing
-    ├── pose_extraction/            # Parametric 3D scene reconstructors (DropKey, MasterLock, Watch, Singer)
-    ├── physics_sanitizer/          # Exact analytical Signed Distance Field (SDF) solver
-    ├── dynamics/                   # Visual inverse dynamics (mass, inertia tensor, grip forces)
-    ├── feasibility/                # URDF kinematic auditor (ALOHA, H1) & MuJoCo physics verifier
-    ├── exporter/                   # Hugging Face LeRobot Apache Parquet serializer
-    └── pipeline.py                 # Central CLI pipeline orchestrator
+├── src/                            # Pure generic, reusable library modules (zero video hardcoding)
+│   ├── ingestion/                  # Video inspection (`inspector.py`) & action slicing (`slicer.py`)
+│   ├── pose_extraction/            # OpenCV pose extractor (`extractor.py`), connected human/robot hands (`hand_model.py`), CAD primitives (`cad_primitives.py`)
+│   ├── physics_sanitizer/          # Analytical Signed Distance Field (`sdf.py`) non-penetration solver
+│   ├── dynamics/                   # Visual inverse dynamics (`inverse_dynamics.py`)
+│   ├── feasibility/                # URDF kinematic auditor (`urdf_auditor.py`) & MuJoCo verifier (`mujoco_verifier.py`)
+│   ├── exporter/                   # Hugging Face LeRobot Apache Parquet serializer (`lerobot_exporter.py`)
+│   └── pipeline.py                 # Central CLI pipeline orchestrator
+│
+└── tests/                          # Mirrored unit, fixture & integration test hierarchy (31/31 passing)
+    ├── ingestion/                  # `test_inspector.py`, `test_slicer.py`
+    ├── pose_extraction/            # `test_scene_reconstructions.py` & scene fixtures (`reconstruct_*_scene.py`)
+    ├── physics_sanitizer/          # `test_geometry_and_contacts.py`
+    ├── dynamics/                   # `test_inverse_dynamics.py`
+    ├── feasibility/                # `test_urdf_auditor.py`, `test_mujoco_verifier.py`
+    ├── exporter/                   # `test_lerobot_exporter.py`, `test_lerobot_schema.py`
+    └── integration/                # `test_pipeline_e2e.py`
 ```
 
 ---
@@ -118,7 +127,7 @@ py -m src.ingestion.slicer --video data/raw/LPL_MasterLock_No3.mp4 --t_start 40.
 py src/pipeline.py --input_dir data/raw --output_dir data/processed
 ```
 
-### 4. Run Test Suite (30 Tests Passing)
+### 4. Run Test Suite (31 Tests Passing)
 ```bash
 py -m pytest tests/ -v
 ```

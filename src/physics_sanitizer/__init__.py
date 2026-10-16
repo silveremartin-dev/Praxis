@@ -1,1 +1,7 @@
-"""Module d'assainissement physique des contacts et prévention d'interpénétration (SDF)."""
+"""
+Praxis Physical Contact Sanitization & Signed Distance Field (SDF) Non-Penetration Module (`src/physics_sanitizer/`).
+"""
+
+from src.physics_sanitizer.sdf import sdf_cylinder, sdf_box, sdf_sphere
+
+__all__ = ["sdf_cylinder", "sdf_box", "sdf_sphere"]

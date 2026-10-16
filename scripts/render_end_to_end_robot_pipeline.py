@@ -1,9 +1,14 @@
 """
-End-to-End Video-to-Robot Retargeting Renderer for Praxis.
+End-to-End Video-to-Dexterous-Robot Retargeting Renderer for Praxis.
+Uses the generic `VideoPoseExtractor` (`src/pose_extraction/extractor.py`),
+`AnatomicalHandModel`, and `DexterousRobotHandModel` (`src/pose_extraction/hand_model.py`).
+
 Produces:
-1. High-resolution 3-panel comparison JPEGs (Video vs. 3D Twin with 5-finger hands + thumbs vs. Robot Gripper)
-2. Smooth, slowed-down frame-by-frame animated GIFs (36 frames @ 5 fps = 7.2s)
-3. Frame-by-frame kinematic decomposition strip (6 sequential stages showing continuous hand, thumb, and lock motion)
+1. High-resolution 3-panel comparison JPEG:
+   [Panel 1: Monocular Video | Panel 2: Connected 5-Finger Human Twin | Panel 3: Bimanual 5-Finger Dexterous Robot Hands]
+2. Slowed-down continuous 30-frame animated GIF (4 fps = 7.5s) covering all 5 gesture phases
+   (approach, horizontal collar slide, withdrawal, needle drop & left thumb slide, and right index pointing).
+3. 6-stage frame-by-frame decomposition grid (`07_lpl_masterlock_frame_decomposition.jpg`).
 """
 
 import os
@@ -15,15 +20,11 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
-import trimesh
 import imageio
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from src.pose_extraction.reconstruct_masterlock_scene import (
-    build_masterlock_bimanual_frame,
-    build_coherent_masterlock_parts
-)
-from src.pose_extraction.hand_model import create_smooth_segment
+from src.pose_extraction.extractor import VideoPoseExtractor
+from tests.pose_extraction.reconstruct_masterlock_scene import build_masterlock_scene
 
 ARTIFACT_DIR = r"C:\Users\silve\.gemini\antigravity\brain\5eb7cf8d-a6d8-47a0-ad1d-925676cd6bf3"
 ASSETS_DIR = "assets/images"
@@ -35,14 +36,14 @@ def hex_to_rgb01(hex_str: str) -> np.ndarray:
     return np.array([int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)], dtype=float)
 
 
-def extract_video_frames(clip_path: str, num_frames: int = 36) -> list:
+def extract_video_frames(clip_path: str, num_frames: int = 30) -> list:
     """Samples evenly spaced RGB frames across the action clip."""
     cap = cv2.VideoCapture(clip_path)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     indices = np.linspace(0, max(1, total_frames - 1), num_frames, dtype=int)
     frames = []
     for idx in indices:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+        cap.set(cv2.CAP_PROP_POS_FRAMES, int(idx))
         ret, frame_bgr = cap.read()
         if ret:
             frames.append(cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB))
@@ -58,26 +59,24 @@ def render_scene_3d(
     azim: float,
     title: str,
     subtitle: str,
-    xlim=(-70, 70),
-    ylim=(-60, 60),
-    zlim=(-20, 90),
+    xlim=(-70, 75),
+    ylim=(-55, 55),
+    zlim=(-22, 85),
     width=640,
     height=480
 ) -> np.ndarray:
     """
     Renders a list of (mesh, hex_color, alpha) tuples with directional Lambertian shading
-    and proper back-to-front depth sorting so every part (padlock, shackle, 5 fingers, thumbs) is crisp.
+    and painter's algorithm back-to-front depth sorting.
     """
     fig = plt.figure(figsize=(width / 100.0, height / 100.0), dpi=100)
     ax = fig.add_subplot(111, projection='3d')
     ax.set_facecolor('#10131a')
     fig.patch.set_facecolor('#10131a')
 
-    # Directional light source from front-top-right
-    light_dir = np.array([0.35, 0.75, 0.55])
+    light_dir = np.array([0.30, -0.75, 0.58])
     light_dir = light_dir / np.linalg.norm(light_dir)
 
-    # Camera view direction for painter's depth sorting
     el_rad = np.radians(elev)
     az_rad = np.radians(azim)
     cam_dir = np.array([
@@ -95,18 +94,17 @@ def render_scene_3d(
         f = mesh.faces
         if len(f) == 0:
             continue
-        tris = v[f]  # (N, 3, 3)
-        centers = tris.mean(axis=1)  # (N, 3)
+        tris = v[f]
+        centers = tris.mean(axis=1)
         depths = centers @ cam_dir
 
-        # Compute face normals for directional shading
         v1 = tris[:, 1] - tris[:, 0]
         v2 = tris[:, 2] - tris[:, 0]
         normals = np.cross(v1, v2)
         norms = np.linalg.norm(normals, axis=1, keepdims=True)
         normals = normals / np.maximum(norms, 1e-8)
 
-        intensity = 0.55 + 0.45 * np.clip(normals @ light_dir, -0.3, 1.0)
+        intensity = 0.56 + 0.44 * np.clip(normals @ light_dir, -0.25, 1.0)
         base_rgb = hex_to_rgb01(hex_color)
         shaded_rgb = np.clip(intensity[:, None] * base_rgb[None, :], 0.0, 1.0)
         rgba_arr = np.column_stack([shaded_rgb, np.full(len(f), alpha)])
@@ -120,13 +118,12 @@ def render_scene_3d(
         depths_cat = np.concatenate(all_depths, axis=0)
         colors_cat = np.concatenate(all_colors, axis=0)
 
-        # Sort back-to-front along camera vector
         order = np.argsort(depths_cat)
         poly_coll = Poly3DCollection(
             polys_cat[order],
             facecolors=colors_cat[order],
             edgecolors='#181c24',
-            linewidths=0.12
+            linewidths=0.10
         )
         ax.add_collection3d(poly_coll)
 
@@ -139,8 +136,8 @@ def render_scene_3d(
         pass
     ax.view_init(elev=elev, azim=azim)
 
-    ax.set_title(title, color='#00ffcc', fontsize=10.5, pad=10, weight='bold')
-    ax.text2D(0.03, 0.93, subtitle, transform=ax.transAxes, color='#cfd8dc', fontsize=8.5)
+    ax.set_title(title, color='#00ffcc', fontsize=10.0, pad=8, weight='bold')
+    ax.text2D(0.03, 0.93, subtitle, transform=ax.transAxes, color='#cfd8dc', fontsize=8.2)
     ax.tick_params(colors='#455a64', labelsize=6.5)
     ax.xaxis.pane.fill = False
     ax.yaxis.pane.fill = False
@@ -154,146 +151,85 @@ def render_scene_3d(
     return img
 
 
-def create_aloha_gripper(position_xyz: np.ndarray, yaw_deg: float = 0.0, opening_mm: float = 20.0) -> trimesh.Trimesh:
-    """Synthesizes a 3D ALOHA / ViperX parallel jaw gripper."""
-    palm = trimesh.creation.box(extents=[28.0, 42.0, 22.0])
-    palm.apply_translation([0, 0, 11.0])
-
-    left_finger = trimesh.creation.box(extents=[9.0, 7.0, 32.0])
-    left_finger.apply_translation([0, -opening_mm / 2 - 3.5, -15.0])
-
-    right_finger = trimesh.creation.box(extents=[9.0, 7.0, 32.0])
-    right_finger.apply_translation([0, opening_mm / 2 + 3.5, -15.0])
-
-    combined_gripper = trimesh.util.concatenate([palm, left_finger, right_finger])
-    R_z = trimesh.transformations.rotation_matrix(np.radians(yaw_deg), [0, 0, 1])
-    combined_gripper.apply_transform(R_z)
-    combined_gripper.apply_translation(position_xyz)
-    return combined_gripper
-
-
-def build_masterlock_dynamic_frame(progress: float):
+def flip_y_for_camera(m_list: list) -> list:
     """
-    Builds synchronized 3D meshes for Master Lock No. 3:
-    1. Twin Meshes: Coherent padlock + 5-finger Left Hand with opposing Left Thumb + 5-finger Right Hand with opposing Right Thumb/Index pinch.
-    2. Robot Meshes: Left Robotic Fixture Vise holding lock body + Right ALOHA Gripper executing the exact bypass trajectory.
+    Maps local model +Y (front face toward camera) to -Y in matplotlib 3D coordinates
+    so that `azim=-88` looks directly at the front face with -X on the left and +X on the right.
     """
-    twin_meshes, state_info = build_masterlock_bimanual_frame(progress)
-
-    t = float(np.clip(progress, 0.0, 1.0))
-    tilt_x = np.radians(6.0 + 10.0 * np.sin(t * np.pi * 0.8))
-    tilt_y = np.radians(-4.0 + 6.0 * t)
-    tilt_z = np.radians(-5.0 + 8.0 * t)
-    R_lock = trimesh.transformations.euler_matrix(tilt_x, tilt_y, tilt_z)[:3, :3]
-    lock_pos = np.array(state_info["lock_pos_mm"])
-
-    # Build Robot Execution Scene
-    robot_meshes = []
-    # Left robot fixture clamp holding base of padlock
-    clamp_left = trimesh.creation.box(extents=[14.0, 26.0, 26.0])
-    clamp_left.apply_translation(lock_pos + np.array([-27.0, 0.0, 14.0]))
-    clamp_right = trimesh.creation.box(extents=[14.0, 26.0, 26.0])
-    clamp_right.apply_translation(lock_pos + np.array([27.0, 0.0, 14.0]))
-    robot_meshes.append((clamp_left, "#37474f", 0.92))
-    robot_meshes.append((clamp_right, "#37474f", 0.92))
-
-    # Add the same coherent padlock assembly
-    lock_parts = build_coherent_masterlock_parts(lock_pos, R_lock)
-    robot_meshes.extend(lock_parts)
-
-    # Add the bypass needle and ALOHA gripper pinching `pinch_pos_mm`
-    tip_world = np.array(state_info["needle_tip_mm"])
-    pinch_world = np.array(state_info["pinch_pos_mm"])
-    handle_elbow = pinch_world + (pinch_world - tip_world) * 0.33
-    handle_end = handle_elbow + np.array([0.0, 0.0, -18.0])
-
-    needle_shaft = create_smooth_segment(tip_world, handle_elbow, 0.9, 1.0, sections=12)
-    needle_bent = create_smooth_segment(handle_elbow, handle_end, 1.0, 1.0, sections=12)
-    robot_meshes.append((needle_shaft, "#00ffcc", 0.99))
-    robot_meshes.append((needle_bent, "#ffffff", 0.99))
-
-    gripper_pos = pinch_world + np.array([0.0, 0.0, 28.0])
-    robot_gripper = create_aloha_gripper(position_xyz=gripper_pos, yaw_deg=0.0, opening_mm=4.0)
-    robot_meshes.append((robot_gripper, "#78909c", 0.95))
-
-    return twin_meshes, robot_meshes, state_info
+    flipped = []
+    for m, col, alp in m_list:
+        mc = m.copy()
+        mc.vertices[:, 1] *= -1.0
+        mc.faces = mc.faces[:, ::-1]
+        flipped.append((mc, col, alp))
+    return flipped
 
 
 def render_end_to_end_masterlock():
     """
     Generates:
     1. 3-panel still comparison JPEG (`07_lpl_masterlock_end_to_end_comparison.jpg`)
-    2. Slowed-down, smooth 36-frame animated GIF (`07_lpl_masterlock_end_to_end_animation.gif` @ 5 fps)
+    2. Slowed-down, smooth 30-frame animated GIF (`07_lpl_masterlock_end_to_end_animation.gif` @ 4 fps)
     3. 6-stage frame-by-frame decomposition grid (`07_lpl_masterlock_frame_decomposition.jpg`)
     """
-    print("[*] Generating Coherent End-to-End Retargeting & Frame Decomposition for 07_lpl_masterlock...")
+    print("[*] Updating 3D OBJ & Metadata via generic VideoPoseExtractor...")
+    build_masterlock_scene(output_dir=PROCESSED_DIR, progress=0.30)
+
+    print("[*] Generating End-to-End Bimanual Human & 5-Finger Robot Hand Renders...")
     clip_path = "data/clips/LPL_MasterLock_No3_clip_40s_50s.mp4"
     num_frames = 30
     video_frames = extract_video_frames(clip_path, num_frames=num_frames)
+    extractor = VideoPoseExtractor()
 
     combined_frames = []
     comparison_still = None
     decomposition_cells = []
-    decomp_indices = [0, 6, 12, 18, 23, 29]
-
-    # Front-facing elevated camera matching the video viewpoint (+Y is toward camera, +X is right, +Z is up)
-    cam_elev = 16.0
-    cam_azim = 88.0
-    # Wait: in matplotlib 3D, azim=-90 looks from -Y towards +Y.
-    # Let's check: in build_coherent_masterlock_parts, +Y is Front Face (where Left Thumb presses at Y=+14mm),
-    # and -Y is Back Face (where 4 Left Fingers curl).
-    # In matplotlib, `azim=90` places the camera at +Y looking toward -Y!
-    # Wait: when `azim=90`, the horizontal axis on screen goes from +X (left of screen) to -X (right of screen)!
-    # Whereas when `azim=-90`, the camera is at -Y looking toward +Y, AND the horizontal axis on screen goes from -X (left of screen) to +X (right of screen)!
-    # Let's verify that! In `azim=-90`, X goes from negative (left) to positive (right), and Z goes from bottom to top, and the camera is at -Y looking towards +Y.
-    # Therefore, if the camera is at -Y, the Front Face (closest to the camera) is at -Y!
-    # Let's make sure the Left Thumb is on the side facing the camera (-Y) and the 4 fingers curl behind (+Y)!
+    # 6 key frames covering all 5 physical phases:
+    # 0 (F01: Diagonal approach), 6 (F07: Collar insertion), 11 (F12: Deep left slide),
+    # 15 (F16: Partial withdrawal), 17 (F18: Left thumb slides down & needle drops!),
+    # 25 (F26: Right index finger pointing on padlock body)
+    decomp_indices = [0, 6, 11, 15, 17, 25]
 
     for i in range(num_frames):
         progress = i / max(1, num_frames - 1)
         v_frame = video_frames[i]
         h_vid, w_vid, _ = v_frame.shape
 
-        twin_meshes, robot_meshes, state_info = build_masterlock_dynamic_frame(progress)
+        human_meshes, state_info = extractor.reconstruct_bimanual_frame(
+            progress=progress, use_robot_hands=False, video_path=clip_path
+        )
+        robot_meshes, _ = extractor.reconstruct_bimanual_frame(
+            progress=progress, use_robot_hands=True, video_path=clip_path
+        )
 
-        # Flip Y coordinate of all meshes so that Front Face (+Y in local model) is at -Y (facing the azim=-88 camera)
-        # while keeping -X on the left and +X on the right!
-        def flip_y_for_camera(m_list):
-            flipped = []
-            for m, col, alp in m_list:
-                mc = m.copy()
-                mc.vertices[:, 1] *= -1.0
-                # Flip face winding so normals stay outward
-                mc.faces = mc.faces[:, ::-1]
-                flipped.append((mc, col, alp))
-            return flipped
-
-        twin_cam = flip_y_for_camera(twin_meshes)
+        human_cam = flip_y_for_camera(human_meshes)
         robot_cam = flip_y_for_camera(robot_meshes)
 
+        tool_status = "Needle Active" if state_info["needle_visible"] else "Needle Dropped -> Index Pointing"
+
         img_twin = render_scene_3d(
-            twin_cam, elev=18, azim=-86,
-            title="Stage 1: Coherent 3D Twin (5-Finger Hands + Thumbs)",
-            subtitle=f"Phase: {state_info['phase']} | Depth: {state_info['insertion_depth_mm']:.1f}mm | SDF >= 0",
-            xlim=(-65, 85), ylim=(-55, 55), zlim=(-15, 90),
+            human_cam, elev=16, azim=-88,
+            title="Stage 1: Connected 5-Finger Human Hand & Lock Twin",
+            subtitle=f"{state_info['phase']} | {tool_status}",
+            xlim=(-70, 78), ylim=(-55, 55), zlim=(-24, 86),
             width=w_vid, height=h_vid
         )
 
         img_robot = render_scene_3d(
-            robot_cam, elev=18, azim=-86,
-            title="Stage 2: ALOHA Robot Gripper Retargeting",
-            subtitle=f"URDF Feasible (99.2%) | Continuous Stroke t={progress:.2f}",
-            xlim=(-65, 85), ylim=(-55, 55), zlim=(-15, 90),
+            robot_cam, elev=16, azim=-88,
+            title="Stage 2: Bimanual 5-Finger Dexterous Robot Hands",
+            subtitle=f"Inspire / Unitree H1 Dexterous Hands | {tool_status} | t={progress*10.0:.1f}s",
+            xlim=(-70, 78), ylim=(-55, 55), zlim=(-24, 86),
             width=w_vid, height=h_vid
         )
 
         v_annotated = v_frame.copy()
-        cv2.putText(v_annotated, "Input: Monocular Video (Slowed Decomposition)", (28, 46), cv2.FONT_HERSHEY_SIMPLEX, 0.95, (0, 0, 0), 4)
-        cv2.putText(v_annotated, "Input: Monocular Video (Slowed Decomposition)", (28, 46), cv2.FONT_HERSHEY_SIMPLEX, 0.95, (255, 255, 255), 2)
+        cv2.putText(v_annotated, "Input: Monocular Video (30-Frame Ground Truth)", (28, 46), cv2.FONT_HERSHEY_SIMPLEX, 0.92, (0, 0, 0), 4)
+        cv2.putText(v_annotated, "Input: Monocular Video (30-Frame Ground Truth)", (28, 46), cv2.FONT_HERSHEY_SIMPLEX, 0.92, (255, 255, 255), 2)
         cv2.putText(
             v_annotated,
-            f"Frame {i+1:02d}/{num_frames} | {state_info['phase']} (t={progress*10.0:.1f}s)",
-            (28, 86), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 200), 2
+            f"Frame {i+1:02d}/{num_frames} (t={progress*10.0:.1f}s) | {state_info['phase']}",
+            (28, 86), cv2.FONT_HERSHEY_SIMPLEX, 0.72, (0, 255, 200), 2
         )
 
         target_h = 360
@@ -306,7 +242,7 @@ def render_end_to_end_masterlock():
         triple = np.hstack([p1, p2, p3])
         combined_frames.append(triple)
 
-        if i == 14:
+        if i == 11:
             comparison_still = triple.copy()
 
         if i in decomp_indices:
@@ -318,12 +254,10 @@ def render_end_to_end_masterlock():
     cv2.imwrite(jpeg_path, cv2.cvtColor(comparison_still, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 95])
     print(f"[+] Saved 3-panel comparison JPEG: {jpeg_path}")
 
-    # Slowed-down GIF (4 fps so the user can clearly inspect every frame transition)
     gif_path = os.path.join(ASSETS_DIR, "07_lpl_masterlock_end_to_end_animation.gif")
     imageio.mimsave(gif_path, combined_frames, fps=4, loop=0)
     print(f"[+] Saved slowed-down continuous GIF (30 frames @ 4 fps): {gif_path}")
 
-    # Save 6-stage frame-by-frame decomposition grid (3 rows x 2 columns of [Video | 3D Twin])
     if len(decomposition_cells) == 6:
         row1 = np.hstack([decomposition_cells[0], decomposition_cells[1]])
         row2 = np.hstack([decomposition_cells[2], decomposition_cells[3]])

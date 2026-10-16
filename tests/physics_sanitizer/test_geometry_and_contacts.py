@@ -3,7 +3,8 @@ import pytest
 import numpy as np
 import trimesh
 
-from src.pose_extraction.reconstruct_dropkey_scene import build_dropkey_scene, create_cylinder, create_box
+from src.pose_extraction.cad_primitives import create_cylinder, create_box
+from tests.pose_extraction.reconstruct_dropkey_scene import build_dropkey_scene
 
 def test_primitive_creation():
     cyl = create_cylinder(radius=5.0, height=50.0)
