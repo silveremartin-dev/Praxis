@@ -38,13 +38,15 @@ def main():
     
     # Recherche des vidéos à traiter
     if args.input_video:
-        video_paths = [args.input_video]
-    else:
+        video_paths = [args.input_video] if os.path.exists(args.input_video) else []
+    elif os.path.exists(args.input_dir):
         video_paths = [
             os.path.join(args.input_dir, f)
             for f in os.listdir(args.input_dir)
             if f.endswith((".mp4", ".mkv", ".webm"))
         ]
+    else:
+        video_paths = []
         
     if not video_paths:
         print(f"[-] Aucune vidéo trouvée dans {args.input_dir}.")

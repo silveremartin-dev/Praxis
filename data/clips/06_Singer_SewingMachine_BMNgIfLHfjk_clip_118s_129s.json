@@ -1,0 +1,25 @@
+{
+  "clip_file": "06_Singer_SewingMachine_BMNgIfLHfjk_clip_118s_129s.mp4",
+  "source_raw_video": "06_Singer_SewingMachine_BMNgIfLHfjk.mp4",
+  "timing": {
+    "t_start_seconds": 118.0,
+    "t_end_seconds": 129.0,
+    "duration_seconds": 11.04,
+    "fps": 25.0,
+    "total_frames": 276
+  },
+  "action_annotation": {
+    "what_is_the_person_doing": "The restorer wearing black protective gloves uses both hands to grip the top and bottom of the antique cast-iron sewing machine faceplate and pulls it outward to detach it from the main body casting.",
+    "action_verb": "manipulate",
+    "target_tool": "bimanual_glove_grip",
+    "target_workpiece": "singer_cast_iron_faceplate",
+    "hand_engagement": "bi-manual",
+    "camera_context": "static_macro"
+  },
+  "physical_affordances": {},
+  "next_pipeline_stages": [
+    "src.pose_extraction.hand_mesh",
+    "src.physics_sanitizer.sdf_optimizer",
+    "src.feasibility.urdf_auditor"
+  ]
+}
