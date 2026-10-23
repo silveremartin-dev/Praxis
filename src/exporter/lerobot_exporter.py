@@ -126,6 +126,7 @@ class LeRobotExporter:
         """
         Saves the PyArrow Table as an Apache Parquet file.
         """
+        filename = os.path.basename(filename)
         if not filename.endswith(".parquet"):
             filename += ".parquet"
         out_path = os.path.join(self.output_dir, filename)

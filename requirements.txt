@@ -5,7 +5,7 @@ torch>=2.1.0
 torchvision>=0.16.0
 
 # Video ingestion & processing
-yt-dlp>=2024.0.0
+yt-dlp>=2024.08.06
 opencv-python>=4.8.0
 ffmpeg-python>=0.2.0
 
