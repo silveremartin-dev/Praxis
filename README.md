@@ -67,8 +67,7 @@ All documentation files use uppercase `.md` formatting, and `src/` is strictly s
 ```
 Praxis/
 ├── AGENTS.md                       # Core project philosophy, automated rejection filter & rules
-├── PROJECT_STATE.md                # Comprehensive session memory & completed assets inventory
-├── README.md                       # Project overview, visual showcase & economic analysis
+├── README.md                       # Project overview, visual showcase, asset registry & economics
 ├── requirements.txt                # Python dependencies
 │
 ├── assets/
@@ -134,9 +133,43 @@ py -m pytest tests/ -v
 
 ---
 
+---
+
+## 🏛️ Certified Demonstration & Digital Twin Asset Registry
+
+### 1. Ingested High-Yield Raw Videos (`data/raw/`)
+* `01_LPL_DropKey_RRunwAI7N5Q.mp4` (02:26) — LockPickingLawyer Drop Key mechanism.
+* `02_iFixit_DualSense_6K_jcXrtrx8.mp4` (05:25) — iFixit PS5 DualSense precision teardown.
+* `03_DIY_CementWD40_mA3QtWz7RMQ.mp4` (15:37) — DIY aluminum can cutting.
+* `04_Cuisine_Installation_KOBqgv-TpyA.mp4` (35:12) — In-situ workshop assembly.
+* `05_Watch_Zodiac_f8NFSwb6VQ8.mp4` (58:55) — Horology chronograph jewel pinion extraction.
+* `06_Singer_SewingMachine_BMNgIfLHfjk.mp4` (31:45) — 1894 Singer cast-iron faceplate detachment.
+* `LPL_AmericanLock_1100.mp4` (08:05) & `LPL_MasterLock_No3.mp4` (02:11) — Precision lock picking & bypass.
+
+### 2. Certified Digital Twins & Hugging Face LeRobot Datasets (`data/processed/`)
+* **01_lpl_dropkey** (Drop Key Articulation): 3D mesh (`.obj`, 674 vertices, 1,316 faces), state-action metadata (`.json`), certified LeRobot Parquet table (`.parquet`, 255 frames, 10 columns: contact vectors, non-penetration SDF, feasibility).
+* **05_watch_zodiac** (Watchmaker Gear Extraction): 3D mesh (`.obj`, 912 vertices, 1,780 faces: tweezers, movement holder, jewel pinion), micro-manipulation schema (`.json`), LeRobot table (`.parquet`, 390 frames, 0.45N tweezer grip force).
+* **06_singer_sewingmachine** (Singer Faceplate Detachment): 3D mesh (`.obj`, 828 vertices, 1,608 faces), bimanual opposing grip metadata (`.json`), LeRobot table (`.parquet`, 276 frames, 9.5N outward detachment vector).
+* **07_lpl_masterlock** (Padlock Bypass, Tool Release & Pointing): 3D assembly (`.obj`, 8,192 vertices, 15,484 faces), 5-phase gesture schema (`.json`), certified LeRobot table (`.parquet`, 300 frames, 10 columns).
+
+### 3. Automated Test Suite (31/31 Passing — 100%)
+* `tests/ingestion/`: `test_inspector.py`, `test_slicer.py` (5 tests)
+* `tests/pose_extraction/`: `test_scene_reconstructions.py` & scene fixtures (4 tests)
+* `tests/physics_sanitizer/`: `test_geometry_and_contacts.py` (3 tests)
+* `tests/dynamics/`: `test_inverse_dynamics.py` (5 tests)
+* `tests/feasibility/`: `test_urdf_auditor.py`, `test_mujoco_verifier.py` (7 tests)
+* `tests/exporter/`: `test_lerobot_exporter.py`, `test_lerobot_schema.py` (5 tests)
+* `tests/integration/`: `test_pipeline_e2e.py` (2 tests)
+
+### 4. Roadmap & Immediate Execution
+1. **Cloud Batch Pipeline**: Docker container with CUDA acceleration and GCP Cloud Run Job script (`scripts/gcp/run_batch.sh`).
+2. **Automated Playlist Ingestion**: Batch mining on curated mechanical YouTube channels (LPL, iFixit, Wristwatch Revival).
+3. **Public Dataset Release**: Distribution of certified episodes to Hugging Face Hub under `Praxis/manipulation-digital-twins-v1`.
+
+---
+
 ## 📖 Master Documentation
-* Read [AGENTS.md](file:///c:/Silvere/Encours/Developpement/Praxis/AGENTS.md) for architectural philosophy and agent rules.
-* Read [docs/ARCHITECTURE.md](file:///c:/Silvere/Encours/Developpement/Praxis/docs/ARCHITECTURE.md) for mathematical formulations (SDF, Coulomb friction, Yoshikawa manipulability, MuJoCo forward stability).
-* Read [docs/THROUGHPUT_AND_UNIT_ECONOMICS.md](file:///c:/Silvere/Encours/Developpement/Praxis/docs/THROUGHPUT_AND_UNIT_ECONOMICS.md) for complete attrition funnel math and comparative cost analysis.
-* Read [PROJECT_STATE.md](file:///c:/Silvere/Encours/Developpement/Praxis/PROJECT_STATE.md) for historical memory and asset registry.
-* Read [docs/SOURCES_AND_PROVENANCE.md](file:///c:/Silvere/Encours/Developpement/Praxis/docs/SOURCES_AND_PROVENANCE.md) for video attributions and licensing.
+* Read [AGENTS.md](file:///c:/Silvere\Encours\Developpement\Praxis\AGENTS.md) for architectural philosophy and agent rules.
+* Read [docs/ARCHITECTURE.md](file:///c:/Silvere\Encours\Developpement\Praxis\docs\ARCHITECTURE.md) for mathematical formulations (SDF, Coulomb friction, Yoshikawa manipulability, MuJoCo forward stability).
+* Read [docs/THROUGHPUT_AND_UNIT_ECONOMICS.md](file:///c:/Silvere\Encours\Developpement\Praxis\docs\THROUGHPUT_AND_UNIT_ECONOMICS.md) for complete attrition funnel math and comparative cost analysis.
+* Read [docs/SOURCES_AND_PROVENANCE.md](file:///c:/Silvere\Encours\Developpement\Praxis\docs\SOURCES_AND_PROVENANCE.md) for video attributions and licensing.
