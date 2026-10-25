@@ -1,35 +1,64 @@
 @echo off
+setlocal enabledelayedexpansion
 REM =====================================================================
 REM Praxis Studio Launcher for Windows
-REM Starts the FastAPI backend with Uvicorn and opens the interactive
-REM 3D physical manipulation viewer in your default web browser.
+REM Automatically locates Python in user directories, finds a collision-free
+REM port (avoiding 8000 used by Artsylometrie/Nizaba), and launches the
+REM interactive 3D Web Studio in your default browser.
 REM =====================================================================
 
-title Praxis Studio — 3D Manipulation & Physics Verifier
+title Praxis Studio - 3D Manipulation and Physics Verifier
 cd /d "%~dp0"
 
-echo [Praxis Studio] Checking Python environment...
+echo [Praxis Studio] Locating Python environment in Users directory...
 
-REM Find Python executable
-set PYTHON_CMD=python
-py -3 --version >nul 2>&1
-if %errorlevel% == 0 (
-    set PYTHON_CMD=py -3
+set "PYTHON_EXE="
+
+REM 1. Check user LocalAppData Python directory (standard install in Users)
+if exist "%LOCALAPPDATA%\Programs\Python\Python314\python.exe" (
+    set "PYTHON_EXE=%LOCALAPPDATA%\Programs\Python\Python314\python.exe"
 )
 
-%PYTHON_CMD% -c "import fastapi, uvicorn, mujoco, trimesh" >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [Praxis Studio] Installing required web and physics dependencies...
-    %PYTHON_CMD% -m pip install fastapi uvicorn[standard] mujoco trimesh
+REM 2. Check any Python 3.x in user LocalAppData
+if not defined PYTHON_EXE (
+    for /d %%D in ("%LOCALAPPDATA%\Programs\Python\Python3*") do (
+        if exist "%%D\python.exe" set "PYTHON_EXE=%%D\python.exe"
+    )
 )
 
-echo [Praxis Studio] Starting server on http://127.0.0.1:8000 ...
-echo [Praxis Studio] Press Ctrl+C in this terminal to stop the server.
+REM 3. Check Python Launcher
+if not defined PYTHON_EXE (
+    py -3 --version >nul 2>&1
+    if !errorlevel! == 0 set "PYTHON_EXE=py -3"
+)
 
-REM Open browser after 2 seconds
-start "" cmd /c "timeout /t 2 /nobreak >nul & start http://127.0.0.1:8000"
+REM 4. Fallback to PATH python
+if not defined PYTHON_EXE (
+    where python >nul 2>&1
+    if !errorlevel! == 0 set "PYTHON_EXE=python"
+)
 
-REM Launch FastAPI Studio Server
-%PYTHON_CMD% -m uvicorn src.studio.server:app --host 127.0.0.1 --port 8000
+if not defined PYTHON_EXE (
+    echo [Praxis Studio] ERROR: Python 3 was not found in your Users directory or PATH.
+    echo Please verify Python is installed in %LOCALAPPDATA%\Programs\Python\
+    pause
+    exit /b 1
+)
 
-pause
+echo [Praxis Studio] Using Python: !PYTHON_EXE!
+
+set PYTHONUNBUFFERED=1
+
+REM Launch Praxis Studio runner with automatic free-port discovery & browser opening
+if "!PYTHON_EXE!"=="py -3" (
+    py -3 -u src\studio\run.py
+) else if "!PYTHON_EXE!"=="python" (
+    python -u src\studio\run.py
+) else (
+    "!PYTHON_EXE!" -u src\studio\run.py
+)
+
+if !errorlevel! neq 0 (
+    echo [Praxis Studio] Server exited with code !errorlevel!.
+    pause
+)

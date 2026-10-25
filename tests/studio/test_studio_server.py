@@ -130,3 +130,11 @@ def test_mujoco_sim_endpoint():
     assert data["numerical_explosion_detected"] is False
     assert data["max_velocity_m_s"] < 10.0
     assert "MuJoCo 3" in data["physics_engine"]
+
+
+def test_dynamic_port_finder():
+    """Verify that find_available_port detects conflict-free ports."""
+    from src.studio.run import find_available_port
+    port = find_available_port(start_port=8055)
+    assert isinstance(port, int)
+    assert 8055 <= port <= 8155
