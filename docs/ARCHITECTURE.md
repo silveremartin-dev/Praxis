@@ -41,6 +41,10 @@ flowchart TD
     Sim --> Export["Module 7: Hugging Face LeRobot Exporter (src/exporter/)"]
     Export --> Parquet["Certified LeRobot Parquet (data/processed/*.parquet)"]
     Export --> Visuals["Visual Assets & Renders (assets/images/)"]
+    
+    Export --> Studio["Module 8: Praxis Web Studio (src/studio/)"]
+    Sim --> Studio
+    Clips --> Studio
 ```
 
 ---
@@ -93,6 +97,24 @@ flowchart TD
   - `physics.sdf_distance_mm`: float32
   - `feasibility_score`: float32
   - `task_description`: string
+
+### Module 8: Praxis Interactive Web Studio (`src/studio/`)
+* **FastAPI Telemetry Backend (`server.py`)**: High-performance asynchronous API providing:
+  - Demonstration catalog endpoints (`/api/clips`, `/api/clip/{id}`) with phase breakdowns and media mounts.
+  - Continuous 3D pose extraction (`/api/clip/{id}/pose?progress=t`).
+  - Native MuJoCo 3.x forward dynamic verification (`/api/mujoco/simulate`).
+  - Hardware specifications for humanoid robot hands (`/api/robots`, `/api/robot/{id}`).
+  - Asynchronous sub-video slicing and metadata generation (`/api/ingest`).
+* **Hardware Robot Specifications Database (`robot_specs.py`)**: Authentic technical kinematics and dynamics data:
+  - **Unitree H1 (Inspire DexHand)**: 6 active DoF, 12 joints, 10N pinch force, 3kg payload, dual-joint linkage coupling.
+  - **Tesla Optimus Gen-2 Hand**: 11 active DoF, 16 joints, 15N pinch, 45N grasp, 10kg payload, tendon-driven BLDC motors, distributed phalanx tactile sensing.
+  - **ALOHA Dual-Arm (Trossen ViperX)**: 7 DoF arm + parallel gripper with compliant silicone / GelSight sensors.
+  - **Franka Emika Panda**: 7 DoF torque-controlled arm + parallel jaw gripper.
+* **Single-Page WebGL Studio (`static/index.html`)**:
+  - Three.js WebGL canvas with OrbitControls, OBJLoader, lighting, contact manifold markers, and live SDF penetration gauge.
+  - Synchronized HTML5 video player and timeline scrubber.
+  - Multi-embodiment retargeting switcher.
+  - One-click launch scripts: `start_web_browser.bat` (Windows) and `start_web_browser.sh` (Linux/macOS).
 
 ---
 

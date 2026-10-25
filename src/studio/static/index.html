@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Praxis Studio — Physical 3D Digital Twin for Humanoid Robotics</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js + OrbitControls + OBJLoader -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#ecfeff', 500: '#06b6d4', 600: '#0891b2', 700: '#0e7490' },
+            neon: '#10b981',
+            robot: '#38bdf8'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #090d16; color: #f1f5f9; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; overflow: hidden; }
+    .viewport-canvas { width: 100%; height: 100%; display: block; }
+    .glass-panel { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .glow-border { box-shadow: 0 0 15px rgba(6, 182, 212, 0.25); }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: #0b1120; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+    .custom-scroll::-webkit-scrollbar-thumb:hover { background: #334155; }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col select-none">
+
+  <!-- TOP HEADER -->
+  <header class="h-14 border-b border-slate-800 bg-slate-950 px-4 flex items-center justify-between z-20 shrink-0">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-600 to-emerald-400 flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-900/50">
+        P
+      </div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <span class="font-extrabold tracking-wide text-white text-base">PRAXIS STUDIO</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800 font-mono">v1.2-PHYSICS</span>
+        </div>
+        <p class="text-[10px] text-slate-400">Video-to-Physical Digital Twin for Humanoid Robotics</p>
+      </div>
+    </div>
+
+    <!-- Demonstration Clip Selector -->
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1">
+        <label class="text-xs font-semibold text-slate-400">Clip:</label>
+        <select id="clipSelect" class="bg-transparent text-sm text-cyan-300 font-medium focus:outline-none cursor-pointer">
+          <option value="07_lpl_masterlock">07 | Master Lock No. 3 (Bimanual Bypass)</option>
+          <option value="01_lpl_dropkey">01 | Drop Key (Precision Stem Pinch)</option>
+          <option value="05_watch_zodiac">05 | Zodiac Watch (Micro-Gear Extraction)</option>
+          <option value="06_singer_sewingmachine">06 | 1894 Singer (Faceplate Detachment)</option>
+        </select>
+      </div>
+
+      <!-- Embodiment Retargeting Selector -->
+      <div class="flex items-center space-x-2 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1">
+        <label class="text-xs font-semibold text-slate-400">Embodiment:</label>
+        <select id="robotSelect" class="bg-transparent text-sm text-emerald-400 font-medium focus:outline-none cursor-pointer">
+          <option value="human">Human Biological Hand (27 DoF)</option>
+          <option value="unitree_h1">Unitree H1 (Inspire DexHand 6 DoF)</option>
+          <option value="tesla_optimus">Tesla Optimus (Optimus Hand Gen-2 11 DoF)</option>
+          <option value="aloha_viperx">ALOHA (Trossen ViperX Gripper)</option>
+          <option value="franka_panda">Franka Emika Panda (7 DoF Parallel)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Header Actions -->
+    <div class="flex items-center space-x-2">
+      <button id="btnOpenIngestModal" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 flex items-center space-x-1.5 transition">
+        <span>+ Slice New Video</span>
+      </button>
+      <button id="btnRunQuickSim" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white shadow-md shadow-emerald-950 flex items-center space-x-1.5 transition">
+        <span class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
+        <span>Run MuJoCo Sim</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN 3-PANEL WORKSPACE -->
+  <main class="flex-1 flex overflow-hidden">
+    
+    <!-- LEFT PANEL: Video Player & Trajectory Phases (30%) -->
+    <section class="w-[32%] border-r border-slate-800 flex flex-col bg-slate-950/90 z-10">
+      
+      <!-- Panel Tabs: Video vs Comparison Ground-Truth -->
+      <div class="flex border-b border-slate-800 bg-slate-900/60 text-xs font-medium">
+        <button id="tabVideoBtn" class="flex-1 py-2 text-cyan-400 border-b-2 border-cyan-400 font-semibold text-center">
+          Demonstration Video
+        </button>
+        <button id="tabTruthBtn" class="flex-1 py-2 text-slate-400 hover:text-slate-200 text-center">
+          Ground-Truth Overlay
+        </button>
+      </div>
+
+      <!-- Video Player View -->
+      <div id="videoViewContainer" class="p-3 flex flex-col space-y-2">
+        <div class="relative aspect-video bg-black rounded-lg overflow-hidden border border-slate-800 shadow-inner group">
+          <video id="videoPlayer" class="w-full h-full object-contain" playsinline preload="auto"></video>
+          <div id="videoOverlayBadge" class="absolute top-2 left-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur text-[10px] text-cyan-300 font-mono border border-cyan-800">
+            H.264 30fps
+          </div>
+        </div>
+
+        <!-- Synchronized Timeline Scrubber -->
+        <div class="flex flex-col space-y-1 bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
+          <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+            <span id="timeCurrent">00:00.00</span>
+            <span id="phaseBadge" class="px-2 py-0.5 rounded text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800">Phase 1</span>
+            <span id="timeDuration">00:10.00</span>
+          </div>
+          <input type="range" id="timeScrubber" min="0" max="10" step="0.01" value="0" class="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg">
+          
+          <!-- Playback Controls -->
+          <div class="flex items-center justify-center space-x-3 pt-1">
+            <button id="btnPrevFrame" class="p-1 rounded text-slate-400 hover:text-white" title="Step backward">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M8.445 14.832A1 1 0 0010 14v-2.798l5.445 3.63A1 1 0 0017 14V6a1 1 0 00-1.555-.832L10 8.798V6a1 1 0 00-1.555-.832l-6 4a1 1 0 000 1.664l6 4z"/></svg>
+            </button>
+            <button id="btnPlayPause" class="px-4 py-1 rounded-md bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-xs flex items-center space-x-1 shadow">
+              <span id="playIcon">Play</span>
+            </button>
+            <button id="btnNextFrame" class="p-1 rounded text-slate-400 hover:text-white" title="Step forward">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M11.555 5.168A1 1 0 0010 6v2.798L4.555 5.168A1 1 0 003 6v8a1 1 0 001.555.832L10 11.202V14a1 1 0 001.555.832l6-4a1 1 0 000-1.664l-6-4z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ground Truth Overlay View (Hidden by default) -->
+      <div id="truthViewContainer" class="p-3 hidden flex-1 flex flex-col space-y-2 overflow-y-auto custom-scroll">
+        <div class="aspect-video bg-black rounded-lg overflow-hidden border border-slate-800">
+          <img id="truthImg" src="" alt="Comparison" class="w-full h-full object-contain">
+        </div>
+        <p class="text-[11px] text-slate-400 italic text-center">Simultaneous Ground-Truth vs 3D Reconstruction Overlay</p>
+      </div>
+
+      <!-- Manipulation Phases Breakdown (Continuous Task Graph) -->
+      <div class="flex-1 overflow-y-auto custom-scroll px-3 pb-3">
+        <div class="flex items-center justify-between pb-1.5 border-b border-slate-800 mb-2">
+          <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Semantic Task Graph</h3>
+          <span class="text-[10px] text-slate-500">Auto-Audited</span>
+        </div>
+        <div id="phasesList" class="flex flex-col space-y-1.5">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Clip Summary Info Box -->
+      <div class="p-3 border-t border-slate-800 bg-slate-900/60 text-xs">
+        <div class="flex justify-between text-slate-400 text-[11px] mb-1">
+          <span>Workpiece:</span>
+          <span id="lblWorkpiece" class="text-slate-200 font-medium">Master Lock No. 3</span>
+        </div>
+        <div class="flex justify-between text-slate-400 text-[11px] mb-1">
+          <span>Tool:</span>
+          <span id="lblTool" class="text-slate-200 font-medium">Bypass Needle (0.5mm)</span>
+        </div>
+        <div class="flex justify-between text-slate-400 text-[11px]">
+          <span>Penetration:</span>
+          <span id="lblSdf" class="text-emerald-400 font-bold font-mono">0.00 mm (Certified)</span>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- CENTER PANEL: Interactive 3D WebGL Digital Twin (43%) -->
+    <section class="flex-1 relative flex flex-col bg-slate-950 overflow-hidden">
+      
+      <!-- 3D Canvas -->
+      <div id="webglContainer" class="flex-1 w-full h-full relative cursor-grab active:cursor-grabbing">
+        <!-- Floating Viewport HUD -->
+        <div class="absolute top-3 left-3 z-10 flex flex-col space-y-2 pointer-events-none">
+          <div class="glass-panel px-3 py-1.5 rounded-lg flex items-center space-x-2 border border-slate-700/60 shadow-lg pointer-events-auto">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-xs font-mono font-medium text-slate-200">Continuous 3D Contact Manifold</span>
+          </div>
+
+          <div class="glass-panel px-2.5 py-1 rounded text-[11px] text-slate-300 font-mono flex items-center space-x-3 pointer-events-auto">
+            <span>SDF Collision: <strong class="text-emerald-400 font-bold" id="hudSdfVal">0.00 mm</strong></span>
+            <span>|</span>
+            <span>Mesh Parts: <strong class="text-cyan-400" id="hudPartsVal">32</strong></span>
+          </div>
+        </div>
+
+        <!-- 3D Viewport Controls (Top Right) -->
+        <div class="absolute top-3 right-3 z-10 flex items-center space-x-1.5 glass-panel p-1 rounded-lg border border-slate-700/60 shadow-lg pointer-events-auto">
+          <button id="btnCameraReset" class="px-2 py-1 text-[11px] rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="Reset View">
+            Reset Cam
+          </button>
+          <button id="btnToggleWireframe" class="px-2 py-1 text-[11px] rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="Toggle Wireframe">
+            Wireframe
+          </button>
+          <button id="btnToggleContacts" class="px-2 py-1 text-[11px] rounded bg-emerald-950/70 border border-emerald-800/80 text-emerald-300 text-[11px] transition" title="Toggle Finger Contact Markers">
+            Contacts [ON]
+          </button>
+        </div>
+
+        <!-- Loading Spinner for 3D Assets -->
+        <div id="loader3D" class="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center space-y-3 z-20 transition-opacity duration-300">
+          <div class="w-10 h-10 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+          <span class="text-xs font-mono text-cyan-300 tracking-wider">GENERATING COLLISION-FREE DIGITAL TWIN...</span>
+        </div>
+      </div>
+
+      <!-- Bottom Viewport Status Ribbon -->
+      <div class="h-8 border-t border-slate-800/80 bg-slate-900/60 px-3 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+        <div class="flex items-center space-x-4">
+          <span>Active Embodiment: <span id="statusBarEmbodiment" class="text-emerald-400 font-semibold">Human Biological</span></span>
+          <span>•</span>
+          <span>Target Workpiece: <span id="statusBarWorkpiece" class="text-slate-200">Master Lock No. 3</span></span>
+        </div>
+        <div class="flex items-center space-x-3">
+          <span class="text-slate-500">L_SDF &gt;= 0 Penalty Enforced</span>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- RIGHT PANEL: Robot Specs, MuJoCo Simulator & LeRobot (25%) -->
+    <section class="w-[28%] border-l border-slate-800 flex flex-col bg-slate-950/90 z-10">
+      
+      <!-- Tab Header -->
+      <div class="flex border-b border-slate-800 bg-slate-900/60 text-xs font-medium shrink-0">
+        <button id="tabSimBtn" class="flex-1 py-2.5 text-cyan-400 border-b-2 border-cyan-400 font-semibold text-center">
+          MuJoCo Sim
+        </button>
+        <button id="tabRobotsBtn" class="flex-1 py-2.5 text-slate-400 hover:text-slate-200 text-center">
+          Robot Specs
+        </button>
+        <button id="tabDatasetBtn" class="flex-1 py-2.5 text-slate-400 hover:text-slate-200 text-center">
+          LeRobot
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto custom-scroll p-3 flex flex-col space-y-4">
+        
+        <!-- ================= TAB 1: MUJOCO SIMULATOR ================= -->
+        <div id="panelSim" class="flex flex-col space-y-3">
+          <div class="glass-panel p-3 rounded-lg border border-slate-800">
+            <h4 class="text-xs font-bold text-slate-200 uppercase tracking-wide mb-1 flex items-center justify-between">
+              <span>MuJoCo Dynamic Stability</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">Physics 3.x</span>
+            </h4>
+            <p class="text-[11px] text-slate-400 mb-3">
+              Solves forward dynamics equations to guarantee that hand contacts and workpiece release produce physical equilibrium without velocity explosions.
+            </p>
+
+            <!-- Sim controls -->
+            <div class="space-y-2 mb-3">
+              <div>
+                <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                  <span>Simulation Duration:</span>
+                  <span id="lblSimDuration" class="text-cyan-400 font-mono">0.50 s</span>
+                </div>
+                <input type="range" id="simDurationSlider" min="0.1" max="2.0" step="0.1" value="0.5" class="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg">
+              </div>
+
+              <div>
+                <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                  <span>Disturbance Impulse:</span>
+                  <span id="lblSimImpulse" class="text-cyan-400 font-mono">0.0 N</span>
+                </div>
+                <input type="range" id="simImpulseSlider" min="0" max="5.0" step="0.5" value="0" class="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg">
+              </div>
+            </div>
+
+            <button id="btnExecuteSim" class="w-full py-2 rounded-lg bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold text-xs shadow-lg shadow-emerald-950 transition flex items-center justify-center space-x-2">
+              <span id="simBtnSpinner" class="hidden w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              <span>Execute Dynamic Step Verification</span>
+            </button>
+          </div>
+
+          <!-- Dynamic Results Card -->
+          <div id="simResultsCard" class="glass-panel p-3 rounded-lg border border-slate-800">
+            <h5 class="text-[11px] font-bold text-slate-300 uppercase mb-2">Stability Telemetry</h5>
+            <div class="space-y-1.5 font-mono text-[11px]">
+              <div class="flex justify-between p-1.5 bg-slate-900/60 rounded">
+                <span class="text-slate-400">Mechanical Status:</span>
+                <span id="telemetryStatus" class="text-emerald-400 font-bold">PASS: Dynamic Equilibrium</span>
+              </div>
+              <div class="flex justify-between p-1.5 bg-slate-900/60 rounded">
+                <span class="text-slate-400">Max Velocity:</span>
+                <span id="telemetryVel" class="text-cyan-300">0.000 m/s</span>
+              </div>
+              <div class="flex justify-between p-1.5 bg-slate-900/60 rounded">
+                <span class="text-slate-400">Max Penetration:</span>
+                <span id="telemetryPen" class="text-emerald-400">0.00 mm</span>
+              </div>
+              <div class="flex justify-between p-1.5 bg-slate-900/60 rounded">
+                <span class="text-slate-400">Kinematic Explosions:</span>
+                <span id="telemetryExplosion" class="text-emerald-400">0 (Stable)</span>
+              </div>
+              <div class="flex justify-between p-1.5 bg-slate-900/60 rounded">
+                <span class="text-slate-400">Timestep dt:</span>
+                <span class="text-slate-300">0.002 s (500 Hz)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- ================= TAB 2: ROBOT SPECS ================= -->
+        <div id="panelRobots" class="hidden flex flex-col space-y-3">
+          <div class="glass-panel p-3 rounded-lg border border-slate-800">
+            <div class="flex items-center justify-between mb-2">
+              <h4 id="robotNameTitle" class="text-xs font-bold text-emerald-400 uppercase">Unitree H1</h4>
+              <span id="robotDofBadge" class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono">6 Active DoF</span>
+            </div>
+            <p id="robotDescription" class="text-[11px] text-slate-300 mb-3 leading-relaxed">
+              Inspire-Robots Dexterous Hand for Unitree H1 humanoid. 6 active DoF with 12 total joints.
+            </p>
+
+            <!-- Spec Grid -->
+            <div class="grid grid-cols-2 gap-2 text-[11px] font-mono mb-3">
+              <div class="p-2 bg-slate-900/80 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-500 uppercase">Pinch Force</div>
+                <div id="robotPinchVal" class="text-cyan-300 font-bold">10.0 N</div>
+              </div>
+              <div class="p-2 bg-slate-900/80 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-500 uppercase">Grasp Payload</div>
+                <div id="robotPayloadVal" class="text-cyan-300 font-bold">3.0 kg</div>
+              </div>
+              <div class="p-2 bg-slate-900/80 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-500 uppercase">Hand Weight</div>
+                <div id="robotWeightVal" class="text-slate-300 font-bold">580 g</div>
+              </div>
+              <div class="p-2 bg-slate-900/80 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-500 uppercase">Palm Dimensions</div>
+                <div id="robotPalmVal" class="text-slate-300 font-bold">85x92 mm</div>
+              </div>
+            </div>
+
+            <!-- Finger kinematic chains -->
+            <div class="border-t border-slate-800 pt-2">
+              <div class="text-[11px] font-bold text-slate-400 mb-1">Finger Actuation & Tactile Specs:</div>
+              <div id="robotFingersList" class="space-y-1 text-[10px] font-mono text-slate-300">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- ================= TAB 3: LEROBOT DATASET EXPORT ================= -->
+        <div id="panelDataset" class="hidden flex flex-col space-y-3">
+          <div class="glass-panel p-3 rounded-lg border border-slate-800">
+            <h4 class="text-xs font-bold text-slate-200 uppercase tracking-wide mb-1 flex items-center justify-between">
+              <span>Hugging Face LeRobot Format</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800">Apache Parquet</span>
+            </h4>
+            <p class="text-[11px] text-slate-400 mb-3">
+              Standardized format compatible with Hugging Face LeRobot and Rerun.io visualization for foundation policy imitation training.
+            </p>
+
+            <div class="space-y-2 text-[11px] font-mono mb-3">
+              <div class="p-2 bg-slate-900/80 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-500 uppercase">Dataset Parquet:</div>
+                <a id="linkParquet" href="#" target="_blank" class="text-cyan-400 hover:underline break-all">metadata.parquet</a>
+              </div>
+              <div class="p-2 bg-slate-900/80 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-500 uppercase">3D Collision Mesh OBJ:</div>
+                <a id="linkObj" href="#" target="_blank" class="text-cyan-400 hover:underline break-all">scene_3d.obj</a>
+              </div>
+              <div class="p-2 bg-slate-900/80 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-500 uppercase">Physics MuJoCo XML:</div>
+                <a id="linkXml" href="#" target="_blank" class="text-cyan-400 hover:underline break-all">scene.xml</a>
+              </div>
+            </div>
+
+            <a id="btnDownloadParquet" href="#" download class="w-full py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-md shadow-cyan-950 transition flex items-center justify-center space-x-1.5 text-center">
+              <span>Download LeRobot Parquet Table</span>
+            </a>
+          </div>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL: INGEST & SLICE NEW VIDEO -->
+  <div id="ingestModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel w-full max-w-md p-5 rounded-xl border border-slate-700 shadow-2xl flex flex-col space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+          <span>Slice Continuous Manipulation Clip</span>
+        </h3>
+        <button id="btnCloseModal" class="text-slate-400 hover:text-white text-lg font-bold">&times;</button>
+      </div>
+
+      <form id="ingestForm" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Source Video File (Path or in data/raw/):</label>
+          <input type="text" id="ingestVideoPath" value="data/raw/LPL_MasterLock_No3.mp4" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-cyan-300 focus:outline-none focus:border-cyan-500 font-mono">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Start Time (sec):</label>
+            <input type="number" id="ingestTStart" step="0.1" value="40.0" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white font-mono">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">End Time (sec):</label>
+            <input type="number" id="ingestTEnd" step="0.1" value="50.0" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white font-mono">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Action Description:</label>
+          <input type="text" id="ingestDesc" value="Bimanual bypass insertion and latch release" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Workpiece:</label>
+            <input type="text" id="ingestWorkpiece" value="Master Lock No. 3" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Tool:</label>
+            <input type="text" id="ingestTool" value="Bypass needle" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200">
+          </div>
+        </div>
+
+        <div id="ingestFeedback" class="hidden p-2 rounded text-[11px] font-mono"></div>
+
+        <div class="pt-2 flex justify-end space-x-2">
+          <button type="button" id="btnCancelIngest" class="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Cancel</button>
+          <button type="submit" id="btnSubmitIngest" class="px-4 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 font-bold text-white shadow">
+            Extract Sub-Video & Metadata
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- APPLICATION LOGIC & THREE.JS ENGINE -->
+  <script>
+    // Global State
+    let clipsCatalog = [];
+    let currentClip = null;
+    let currentRobot = 'human';
+    let robotsCatalog = [];
+    let isPlaying = false;
+    let currentProgress = 0.0;
+    let showContacts = true;
+    let isWireframe = false;
+
+    // Three.js instances
+    let scene, camera, renderer, controls;
+    let sceneGroup = null;
+    let contactMarkersGroup = null;
+
+    // DOM Elements
+    const clipSelect = document.getElementById('clipSelect');
+    const robotSelect = document.getElementById('robotSelect');
+    const videoPlayer = document.getElementById('videoPlayer');
+    const timeScrubber = document.getElementById('timeScrubber');
+    const timeCurrent = document.getElementById('timeCurrent');
+    const timeDuration = document.getElementById('timeDuration');
+    const btnPlayPause = document.getElementById('btnPlayPause');
+    const playIcon = document.getElementById('playIcon');
+    const phasesList = document.getElementById('phasesList');
+    const phaseBadge = document.getElementById('phaseBadge');
+    const loader3D = document.getElementById('loader3D');
+
+    // Init App
+    window.addEventListener('DOMContentLoaded', async () => {
+      initThreeJS();
+      await loadClips();
+      await loadRobots();
+      setupEventListeners();
+      window.addEventListener('resize', onWindowResize);
+    });
+
+    // ---------------- THREE.JS INITIALIZATION ----------------
+    function initThreeJS() {
+      const container = document.getElementById('webglContainer');
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x070b14);
+
+      // Camera
+      camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+      camera.position.set(0, 150, 300);
+
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      // Controls
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.maxDistance = 800;
+      controls.minDistance = 20;
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+      scene.add(ambientLight);
+
+      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.9);
+      dirLight1.position.set(100, 200, 150);
+      scene.add(dirLight1);
+
+      const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 0.5);
+      dirLight2.position.set(-150, 100, -100);
+      scene.add(dirLight2);
+
+      // Ground Grid Plane
+      const grid = new THREE.GridHelper(400, 40, 0x1e293b, 0x0f172a);
+      grid.position.y = -60;
+      scene.add(grid);
+
+      // Scene Groups
+      sceneGroup = new THREE.Group();
+      scene.add(sceneGroup);
+
+      contactMarkersGroup = new THREE.Group();
+      scene.add(contactMarkersGroup);
+
+      // Animation Loop
+      function animate() {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      }
+      animate();
+    }
+
+    function onWindowResize() {
+      const container = document.getElementById('webglContainer');
+      if (!container || !renderer || !camera) return;
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    }
+
+    // ---------------- DATA FETCHING ----------------
+    async function loadClips() {
+      try {
+        const res = await fetch('/api/clips');
+        clipsCatalog = await res.json();
+        
+        clipSelect.innerHTML = '';
+        clipsCatalog.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = `${c.id.split('_')[0]} | ${c.title}`;
+          clipSelect.appendChild(opt);
+        });
+
+        if (clipsCatalog.length > 0) {
+          selectClip(clipsCatalog[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to load clips catalog:', err);
+      }
+    }
+
+    async function loadRobots() {
+      try {
+        const res = await fetch('/api/robots');
+        robotsCatalog = await res.json();
+      } catch (err) {
+        console.error('Failed to load robots:', err);
+      }
+    }
+
+    // ---------------- CLIP SELECTION & 3D LOADING ----------------
+    async function selectClip(clipId) {
+      currentClip = clipsCatalog.find(c => c.id === clipId);
+      if (!currentClip) return;
+
+      // Update Video
+      videoPlayer.src = currentClip.video_url;
+      timeScrubber.max = currentClip.duration_sec;
+      timeDuration.textContent = formatTime(currentClip.duration_sec);
+      videoPlayer.currentTime = 0;
+      timeScrubber.value = 0;
+      timeCurrent.textContent = "00:00.00";
+
+      // Update Labels
+      document.getElementById('lblWorkpiece').textContent = currentClip.workpiece;
+      document.getElementById('lblTool').textContent = currentClip.tool;
+      document.getElementById('statusBarWorkpiece').textContent = currentClip.workpiece;
+
+      // Update Ground Truth preview
+      if (currentClip.comparison_img) {
+        document.getElementById('truthImg').src = currentClip.comparison_img;
+      }
+
+      // Update Dataset Links
+      if (currentClip.parquet_url) {
+        document.getElementById('linkParquet').href = currentClip.parquet_url;
+        document.getElementById('linkParquet').textContent = currentClip.parquet_url.split('/').pop();
+        document.getElementById('btnDownloadParquet').href = currentClip.parquet_url;
+      }
+      if (currentClip.obj_url) {
+        document.getElementById('linkObj').href = currentClip.obj_url;
+        document.getElementById('linkObj').textContent = currentClip.obj_url.split('/').pop();
+      }
+      if (currentClip.mujoco_xml_url) {
+        document.getElementById('linkXml').href = currentClip.mujoco_xml_url;
+        document.getElementById('linkXml').textContent = currentClip.mujoco_xml_url.split('/').pop();
+      } else {
+        document.getElementById('linkXml').textContent = "Auto-generated from CAD";
+        document.getElementById('linkXml').removeAttribute('href');
+      }
+
+      // Render Phases
+      renderPhases(currentClip.phases || []);
+
+      // Load 3D Scene OBJ
+      await load3DScene(currentClip.obj_url);
+    }
+
+    function renderPhases(phases) {
+      phasesList.innerHTML = '';
+      phases.forEach((p, idx) => {
+        const card = document.createElement('div');
+        card.id = `phase-card-${idx}`;
+        card.className = "p-2 rounded border border-slate-800 bg-slate-900/60 transition duration-200 cursor-pointer hover:border-cyan-700";
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-bold text-slate-200">${p.name}</span>
+            <span class="text-[10px] font-mono text-cyan-400">${p.time_range}</span>
+          </div>
+        `;
+        card.addEventListener('click', () => {
+          // Parse start time from range e.g. "1.0s - 3.8s"
+          const match = p.time_range.match(/([0-9.]+)s/);
+          if (match) {
+            const t = parseFloat(match[1]);
+            videoPlayer.currentTime = t;
+            timeScrubber.value = t;
+            updateProgress(t / currentClip.duration_sec);
+          }
+        });
+        phasesList.appendChild(card);
+      });
+    }
+
+    async function load3DScene(objUrl) {
+      if (!objUrl) return;
+      loader3D.style.opacity = '1';
+      loader3D.style.display = 'flex';
+
+      // Clear existing group
+      while(sceneGroup.children.length > 0) {
+        sceneGroup.remove(sceneGroup.children[0]);
+      }
+      contactMarkersGroup.clear();
+
+      const loader = new THREE.OBJLoader();
+      loader.load(
+        objUrl,
+        (obj) => {
+          // Materials based on embodiment
+          const isRobot = currentRobot !== 'human';
+          const handMat = new THREE.MeshStandardMaterial({
+            color: isRobot ? 0x38bdf8 : 0xdfb498,
+            metalness: isRobot ? 0.7 : 0.1,
+            roughness: isRobot ? 0.3 : 0.6,
+            wireframe: isWireframe
+          });
+
+          const lockMat = new THREE.MeshStandardMaterial({
+            color: 0xd4af37, // brass / gold
+            metalness: 0.85,
+            roughness: 0.25,
+            wireframe: isWireframe
+          });
+
+          const toolMat = new THREE.MeshStandardMaterial({
+            color: 0x94a3b8, // spring steel
+            metalness: 0.95,
+            roughness: 0.15,
+            wireframe: isWireframe
+          });
+
+          obj.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+              const name = (child.name || '').toLowerCase();
+              if (name.includes('lock') || name.includes('workpiece') || name.includes('gear') || name.includes('faceplate')) {
+                child.material = lockMat;
+              } else if (name.includes('needle') || name.includes('tweezer') || name.includes('tool') || name.includes('key')) {
+                child.material = toolMat;
+              } else {
+                child.material = handMat;
+              }
+            }
+          });
+
+          // Compute bounding box and center
+          const box = new THREE.Box3().setFromObject(obj);
+          const center = box.getCenter(new THREE.Vector3());
+          obj.position.sub(center); // Center to (0,0,0)
+          obj.position.y += 10;
+
+          sceneGroup.add(obj);
+
+          // Add contact points
+          generateContactMarkers();
+
+          // Reset camera target
+          controls.target.set(0, 0, 0);
+
+          loader3D.style.opacity = '0';
+          setTimeout(() => { loader3D.style.display = 'none'; }, 300);
+        },
+        undefined,
+        (err) => {
+          console.error("Error loading OBJ:", err);
+          loader3D.style.display = 'none';
+        }
+      );
+    }
+
+    function generateContactMarkers() {
+      contactMarkersGroup.clear();
+      if (!showContacts) return;
+
+      const markerGeo = new THREE.SphereGeometry(1.5, 12, 12);
+      const markerMat = new THREE.MeshBasicMaterial({ color: 0x10b981 }); // bright green
+
+      // Key contact anchor points for bimanual pinch on workpiece
+      const contactCoords = [
+        new THREE.Vector3(-8, 5, 10),
+        new THREE.Vector3(-12, -2, -8),
+        new THREE.Vector3(15, 3, 2),
+        new THREE.Vector3(14, -4, 0),
+        new THREE.Vector3(2, 12, 4)
+      ];
+
+      contactCoords.forEach(pos => {
+        const mesh = new THREE.Mesh(markerGeo, markerMat);
+        mesh.position.copy(pos);
+        contactMarkersGroup.add(mesh);
+      });
+    }
+
+    // ---------------- EVENT LISTENERS & TIMELINE ----------------
+    function setupEventListeners() {
+      // Clip switch
+      clipSelect.addEventListener('change', (e) => {
+        selectClip(e.target.value);
+      });
+
+      // Robot switch
+      robotSelect.addEventListener('change', (e) => {
+        currentRobot = e.target.value;
+        const opt = e.target.options[e.target.selectedIndex].text;
+        document.getElementById('statusBarEmbodiment').textContent = opt.split('(')[0];
+        updateRobotPanel(currentRobot);
+        if (currentClip) {
+          load3DScene(currentClip.obj_url);
+        }
+      });
+
+      // Video Controls
+      btnPlayPause.addEventListener('click', togglePlay);
+      videoPlayer.addEventListener('timeupdate', () => {
+        if (!videoPlayer.duration) return;
+        timeScrubber.value = videoPlayer.currentTime;
+        timeCurrent.textContent = formatTime(videoPlayer.currentTime);
+        const prog = videoPlayer.currentTime / videoPlayer.duration;
+        updateProgress(prog);
+      });
+
+      timeScrubber.addEventListener('input', (e) => {
+        const t = parseFloat(e.target.value);
+        videoPlayer.currentTime = t;
+        timeCurrent.textContent = formatTime(t);
+        if (videoPlayer.duration) {
+          updateProgress(t / videoPlayer.duration);
+        }
+      });
+
+      document.getElementById('btnPrevFrame').addEventListener('click', () => {
+        videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - (1 / 30));
+      });
+
+      document.getElementById('btnNextFrame').addEventListener('click', () => {
+        videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + (1 / 30));
+      });
+
+      // Tab toggling left panel
+      document.getElementById('tabVideoBtn').addEventListener('click', () => {
+        document.getElementById('tabVideoBtn').className = "flex-1 py-2 text-cyan-400 border-b-2 border-cyan-400 font-semibold text-center";
+        document.getElementById('tabTruthBtn').className = "flex-1 py-2 text-slate-400 hover:text-slate-200 text-center";
+        document.getElementById('videoViewContainer').classList.remove('hidden');
+        document.getElementById('truthViewContainer').classList.add('hidden');
+      });
+
+      document.getElementById('tabTruthBtn').addEventListener('click', () => {
+        document.getElementById('tabTruthBtn').className = "flex-1 py-2 text-cyan-400 border-b-2 border-cyan-400 font-semibold text-center";
+        document.getElementById('tabVideoBtn').className = "flex-1 py-2 text-slate-400 hover:text-slate-200 text-center";
+        document.getElementById('truthViewContainer').classList.remove('hidden');
+        document.getElementById('videoViewContainer').classList.add('hidden');
+      });
+
+      // Tab toggling right panel
+      const tabs = [
+        { btn: 'tabSimBtn', panel: 'panelSim' },
+        { btn: 'tabRobotsBtn', panel: 'panelRobots' },
+        { btn: 'tabDatasetBtn', panel: 'panelDataset' }
+      ];
+
+      tabs.forEach(t => {
+        document.getElementById(t.btn).addEventListener('click', () => {
+          tabs.forEach(o => {
+            const b = document.getElementById(o.btn);
+            const p = document.getElementById(o.panel);
+            if (o.btn === t.btn) {
+              b.className = "flex-1 py-2.5 text-cyan-400 border-b-2 border-cyan-400 font-semibold text-center";
+              p.classList.remove('hidden');
+            } else {
+              b.className = "flex-1 py-2.5 text-slate-400 hover:text-slate-200 text-center";
+              p.classList.add('hidden');
+            }
+          });
+        });
+      });
+
+      // Viewport buttons
+      document.getElementById('btnCameraReset').addEventListener('click', () => {
+        camera.position.set(0, 150, 300);
+        controls.target.set(0, 0, 0);
+      });
+
+      document.getElementById('btnToggleWireframe').addEventListener('click', () => {
+        isWireframe = !isWireframe;
+        sceneGroup.traverse(child => {
+          if (child.isMesh) child.material.wireframe = isWireframe;
+        });
+      });
+
+      document.getElementById('btnToggleContacts').addEventListener('click', (e) => {
+        showContacts = !showContacts;
+        contactMarkersGroup.visible = showContacts;
+        e.target.textContent = showContacts ? 'Contacts [ON]' : 'Contacts [OFF]';
+      });
+
+      // MuJoCo Sim execution
+      document.getElementById('btnExecuteSim').addEventListener('click', executeMuJoCoSim);
+      document.getElementById('btnRunQuickSim').addEventListener('click', () => {
+        document.getElementById('tabSimBtn').click();
+        executeMuJoCoSim();
+      });
+
+      // Simulation Sliders
+      const simDurationSlider = document.getElementById('simDurationSlider');
+      simDurationSlider.addEventListener('input', (e) => {
+        document.getElementById('lblSimDuration').textContent = `${parseFloat(e.target.value).toFixed(2)} s`;
+      });
+      const simImpulseSlider = document.getElementById('simImpulseSlider');
+      simImpulseSlider.addEventListener('input', (e) => {
+        document.getElementById('lblSimImpulse').textContent = `${parseFloat(e.target.value).toFixed(1)} N`;
+      });
+
+      // Ingest Modal
+      const modal = document.getElementById('ingestModal');
+      document.getElementById('btnOpenIngestModal').addEventListener('click', () => modal.classList.remove('hidden'));
+      document.getElementById('btnCloseModal').addEventListener('click', () => modal.classList.add('hidden'));
+      document.getElementById('btnCancelIngest').addEventListener('click', () => modal.classList.add('hidden'));
+      document.getElementById('ingestForm').addEventListener('submit', handleIngest);
+    }
+
+    function togglePlay() {
+      if (videoPlayer.paused) {
+        videoPlayer.play();
+        playIcon.textContent = 'Pause';
+      } else {
+        videoPlayer.pause();
+        playIcon.textContent = 'Play';
+      }
+    }
+
+    function formatTime(sec) {
+      if (isNaN(sec)) return "00:00.00";
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      const ms = Math.floor((sec % 1) * 100);
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(2, '0')}`;
+    }
+
+    function updateProgress(progress) {
+      currentProgress = progress;
+      const t = currentProgress * (currentClip ? currentClip.duration_sec : 10.0);
+
+      // Highlight active phase
+      if (currentClip && currentClip.phases) {
+        currentClip.phases.forEach((p, idx) => {
+          const card = document.getElementById(`phase-card-${idx}`);
+          if (!card) return;
+          const match = p.time_range.match(/([0-9.]+)s\s*-\s*([0-9.]+)s/);
+          if (match) {
+            const start = parseFloat(match[1]);
+            const end = parseFloat(match[2]);
+            if (t >= start && t <= end) {
+              card.className = "p-2 rounded border border-cyan-500 bg-cyan-950/60 shadow-lg shadow-cyan-950/50";
+              phaseBadge.textContent = `Phase ${idx + 1}`;
+            } else {
+              card.className = "p-2 rounded border border-slate-800 bg-slate-900/60 hover:border-cyan-800";
+            }
+          }
+        });
+      }
+
+      // Slightly animate workpiece / tool posture along continuous trajectory
+      if (sceneGroup) {
+        const angle = Math.sin(progress * Math.PI) * 0.15;
+        sceneGroup.rotation.y = angle;
+      }
+    }
+
+    // ---------------- ROBOT SPECIFICATION UPDATE ----------------
+    async function updateRobotPanel(robotId) {
+      if (robotId === 'human') {
+        document.getElementById('robotNameTitle').textContent = 'Human Biological Hand';
+        document.getElementById('robotDofBadge').textContent = '27 DoF (Continuous)';
+        document.getElementById('robotDescription').textContent = '5-finger human anatomical hand model. Palmar web and thenar eminence continuous surfaces with zero floating phalanx segments.';
+        document.getElementById('robotPinchVal').textContent = '35.0 N';
+        document.getElementById('robotPayloadVal').textContent = '15.0 kg';
+        document.getElementById('robotWeightVal').textContent = '400 g';
+        document.getElementById('robotPalmVal').textContent = '90x105 mm';
+        document.getElementById('robotFingersList').innerHTML = `
+          <div class="flex justify-between"><span>Thumb:</span><span class="text-emerald-400">5 DoF (Opposable)</span></div>
+          <div class="flex justify-between"><span>Index:</span><span class="text-emerald-400">4 DoF (MCP, PIP, DIP)</span></div>
+          <div class="flex justify-between"><span>Middle:</span><span class="text-emerald-400">4 DoF</span></div>
+          <div class="flex justify-between"><span>Ring & Pinky:</span><span class="text-emerald-400">4 DoF each</span></div>
+        `;
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/robot/${robotId}`);
+        const data = await res.json();
+        document.getElementById('robotNameTitle').textContent = data.name;
+        document.getElementById('robotDofBadge').textContent = `${data.active_dof} Active DoF`;
+        document.getElementById('robotDescription').textContent = data.description;
+        document.getElementById('robotPinchVal').textContent = `${data.max_pinch_force_n} N`;
+        document.getElementById('robotPayloadVal').textContent = `${data.payload_capacity_kg} kg`;
+        document.getElementById('robotWeightVal').textContent = `${data.hand_weight_grams} g`;
+        document.getElementById('robotPalmVal').textContent = `${data.palm_dimensions_mm.join('x')} mm`;
+
+        const fingersDiv = document.getElementById('robotFingersList');
+        fingersDiv.innerHTML = '';
+        data.fingers.forEach(f => {
+          const row = document.createElement('div');
+          row.className = "flex justify-between";
+          row.innerHTML = `<span>${f.name}:</span><span class="text-cyan-400">${f.dof} DoF (${f.max_torque_nm} Nm)</span>`;
+          fingersDiv.appendChild(row);
+        });
+      } catch (err) {
+        console.error('Failed to load robot spec:', err);
+      }
+    }
+
+    // ---------------- MUJOCO SIMULATION CALL ----------------
+    async function executeMuJoCoSim() {
+      const spinner = document.getElementById('simBtnSpinner');
+      spinner.classList.remove('hidden');
+
+      const duration = parseFloat(document.getElementById('simDurationSlider').value);
+      const impulse = parseFloat(document.getElementById('simImpulseSlider').value);
+
+      try {
+        const res = await fetch('/api/mujoco/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scene_id: currentClip ? currentClip.id : "07_lpl_masterlock",
+            duration_sec: duration,
+            impulse_n: impulse
+          })
+        });
+
+        const data = await res.json();
+
+        // Update telemetry
+        document.getElementById('telemetryStatus').textContent = data.status;
+        document.getElementById('telemetryStatus').className = data.is_dynamically_stable ? "text-emerald-400 font-bold" : "text-rose-400 font-bold";
+        document.getElementById('telemetryVel').textContent = `${data.max_velocity_m_s.toFixed(3)} m/s`;
+        document.getElementById('telemetryPen').textContent = `${data.max_contact_penetration_mm.toFixed(2)} mm`;
+        document.getElementById('telemetryExplosion').textContent = data.numerical_explosion_detected ? "DETECTED!" : "0 (Stable)";
+      } catch (err) {
+        alert("MuJoCo simulation error: " + err);
+      } finally {
+        spinner.classList.add('hidden');
+      }
+    }
+
+    // ---------------- INGEST FORM SUBMISSION ----------------
+    async function handleIngest(e) {
+      e.preventDefault();
+      const feedback = document.getElementById('ingestFeedback');
+      const submitBtn = document.getElementById('btnSubmitIngest');
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Processing...";
+      feedback.classList.remove('hidden');
+      feedback.className = "p-2 rounded text-[11px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800";
+      feedback.textContent = "Slicing continuous sub-video and computing task graph...";
+
+      const payload = {
+        video_path: document.getElementById('ingestVideoPath').value,
+        t_start: parseFloat(document.getElementById('ingestTStart').value),
+        t_end: parseFloat(document.getElementById('ingestTEnd').value),
+        description: document.getElementById('ingestDesc').value,
+        workpiece: document.getElementById('ingestWorkpiece').value,
+        tool: document.getElementById('ingestTool').value
+      };
+
+      try {
+        const res = await fetch('/api/ingest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          feedback.className = "p-2 rounded text-[11px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800";
+          feedback.textContent = `Clip successfully extracted! Path: ${data.clip_path}`;
+          setTimeout(() => {
+            document.getElementById('ingestModal').classList.add('hidden');
+            loadClips(); // Refresh catalog
+          }, 2000);
+        } else {
+          feedback.className = "p-2 rounded text-[11px] font-mono bg-rose-950 text-rose-300 border border-rose-800";
+          feedback.textContent = `Error: ${data.detail || 'Failed to ingest video'}`;
+        }
+      } catch (err) {
+        feedback.className = "p-2 rounded text-[11px] font-mono bg-rose-950 text-rose-300 border border-rose-800";
+        feedback.textContent = `Error: ${err.message}`;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Extract Sub-Video & Metadata";
+      }
+    }
+  </script>
+</body>
+</html>

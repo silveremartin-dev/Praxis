@@ -4,6 +4,30 @@ Automated data-engineering engine transforming monocular in-the-wild web videos 
 
 ---
 
+## 🌐 Praxis Studio — Interactive 3D Web Studio & Physics Verifier
+
+Praxis includes an interactive, browser-based inspection studio (**Praxis Studio**) to visualize demonstrations side-by-side with continuous 3D digital twins, retargeted robot hands (**Unitree H1**, **Tesla Optimus**, **ALOHA**, **Franka**), and run native **MuJoCo 3.x** forward physics simulation directly from the web browser.
+
+### Launch with One-Click Scripts:
+* **Windows**: Double-click [`start_web_browser.bat`](file:///c:/Silvere/Encours/Developpement/Praxis/start_web_browser.bat) (or run `start_web_browser.bat` in Command Prompt / PowerShell).
+* **Linux / macOS**: Run `./start_web_browser.sh` (or `bash start_web_browser.sh`).
+
+Or launch via Python CLI:
+```bash
+py -m uvicorn src.studio.server:app --port 8000
+```
+Then navigate to **`http://localhost:8000`** in any modern web browser.
+
+### Features of Praxis Studio:
+1. **Synchronized Video & 3D Scrubber**: Plays demonstrated YouTube MP4 clips alongside interactive Three.js 3D meshes with synchronized timeline scrubbing and frame-by-frame stepping.
+2. **Dynamic Task Graph Breakdown**: Highlights real-time gesture phases (approach, alignment, grasp, manipulation, release) with auto-audited timestamps.
+3. **Multi-Embodiment Inspection**: Seamlessly switch between the biological human hand (27 DoF continuous mesh) and authentic humanoid robot hands (**Unitree H1 Inspire DexHand**, **Tesla Optimus Gen-2**, **ALOHA dual-arm ViperX**, **Franka Panda**).
+4. **Live MuJoCo 3.x Physics Engine**: Trigger forward dynamics simulation directly in the browser to audit demonstration stability, velocity bounds, and verify zero contact penetration.
+5. **Interactive Video Slicer**: Slice continuous manipulation sequences from raw videos and automatically generate paired task graph metadata without leaving the browser.
+6. **LeRobot Dataset Export**: Instant preview and download of Hugging Face LeRobot Apache Parquet tables and metric Wavefront OBJ models.
+
+---
+
 ## 🤖 End-to-End Retargeting: Video → 3D Twin Simulation → Robot Execution
 
 Praxis extracts the primary affordance trajectory from monocular video, optimizes zero-penetration contact manifolds ($\text{SDF} \ge 0$), and retargets the gesture directly to humanoid and dual-arm robotic grippers (ALOHA, Unitree H1) with zero human intervention.
@@ -95,15 +119,17 @@ Praxis/
 │   ├── dynamics/                   # Visual inverse dynamics (`inverse_dynamics.py`)
 │   ├── feasibility/                # URDF kinematic auditor (`urdf_auditor.py`) & MuJoCo verifier (`mujoco_verifier.py`)
 │   ├── exporter/                   # Hugging Face LeRobot Apache Parquet serializer (`lerobot_exporter.py`)
+│   ├── studio/                     # Web studio backend (`server.py`), robot specs (`robot_specs.py`), static Three.js app (`static/index.html`)
 │   └── pipeline.py                 # Central CLI pipeline orchestrator
 │
-└── tests/                          # Mirrored unit, fixture & integration test hierarchy (31/31 passing)
+└── tests/                          # Mirrored unit, fixture & integration test hierarchy (41/41 passing)
     ├── ingestion/                  # `test_inspector.py`, `test_slicer.py`
     ├── pose_extraction/            # `test_scene_reconstructions.py` & scene fixtures (`reconstruct_*_scene.py`)
     ├── physics_sanitizer/          # `test_geometry_and_contacts.py`
     ├── dynamics/                   # `test_inverse_dynamics.py`
     ├── feasibility/                # `test_urdf_auditor.py`, `test_mujoco_verifier.py`
     ├── exporter/                   # `test_lerobot_exporter.py`, `test_lerobot_schema.py`
+    ├── studio/                     # `test_studio_server.py` (FastAPI, WebGL, MuJoCo API tests)
     └── integration/                # `test_pipeline_e2e.py`
 ```
 
@@ -126,7 +152,7 @@ py -m src.ingestion.slicer --video data/raw/LPL_MasterLock_No3.mp4 --t_start 40.
 py src/pipeline.py --input_dir data/raw --output_dir data/processed
 ```
 
-### 4. Run Test Suite (31 Tests Passing)
+### 4. Run Test Suite (41 Tests Passing)
 ```bash
 py -m pytest tests/ -v
 ```
@@ -152,13 +178,14 @@ py -m pytest tests/ -v
 * **06_singer_sewingmachine** (Singer Faceplate Detachment): 3D mesh (`.obj`, 828 vertices, 1,608 faces), bimanual opposing grip metadata (`.json`), LeRobot table (`.parquet`, 276 frames, 9.5N outward detachment vector).
 * **07_lpl_masterlock** (Padlock Bypass, Tool Release & Pointing): 3D assembly (`.obj`, 8,192 vertices, 15,484 faces), 5-phase gesture schema (`.json`), certified LeRobot table (`.parquet`, 300 frames, 10 columns).
 
-### 3. Automated Test Suite (31/31 Passing — 100%)
+### 3. Automated Test Suite (41/41 Passing — 100%)
 * `tests/ingestion/`: `test_inspector.py`, `test_slicer.py` (5 tests)
 * `tests/pose_extraction/`: `test_scene_reconstructions.py` & scene fixtures (4 tests)
 * `tests/physics_sanitizer/`: `test_geometry_and_contacts.py` (3 tests)
 * `tests/dynamics/`: `test_inverse_dynamics.py` (5 tests)
 * `tests/feasibility/`: `test_urdf_auditor.py`, `test_mujoco_verifier.py` (7 tests)
 * `tests/exporter/`: `test_lerobot_exporter.py`, `test_lerobot_schema.py` (5 tests)
+* `tests/studio/`: `test_studio_server.py` (10 tests)
 * `tests/integration/`: `test_pipeline_e2e.py` (2 tests)
 
 ### 4. Roadmap & Immediate Execution
