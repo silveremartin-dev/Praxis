@@ -1103,7 +1103,6 @@
         contactMarkersGroup.add(m);
       });
     }
-    }
 
     // ---------------- FAST EVENT LISTENERS ----------------
     function setupEventListeners() {
@@ -1304,7 +1303,11 @@
         const f1 = frames[idx1];
 
         // Animate Left Hand Skeleton Joints
-        if (f0.lh_joints && f1.lh_joints && lhJointMeshes.length === 21) {
+        const hasLh = f0.lh_joints && f1.lh_joints && f0.lh_joints.length === 21 && f1.lh_joints.length === 21;
+        lhJointMeshes.forEach(m => { m.visible = hasLh && showSkeleton; });
+        if (lhBoneLines) lhBoneLines.visible = hasLh && showSkeleton;
+
+        if (hasLh && lhJointMeshes.length === 21) {
           const positions = lhBoneLines.geometry.attributes.position.array;
           for (let j = 0; j < 21; j++) {
             const p0 = f0.lh_joints[j];
@@ -1326,7 +1329,11 @@
         }
 
         // Animate Right Hand Skeleton Joints
-        if (f0.rh_joints && f1.rh_joints && rhJointMeshes.length === 21) {
+        const hasRh = f0.rh_joints && f1.rh_joints && f0.rh_joints.length === 21 && f1.rh_joints.length === 21;
+        rhJointMeshes.forEach(m => { m.visible = hasRh && showSkeleton; });
+        if (rhBoneLines) rhBoneLines.visible = hasRh && showSkeleton;
+
+        if (hasRh && rhJointMeshes.length === 21) {
           const positions = rhBoneLines.geometry.attributes.position.array;
           for (let j = 0; j < 21; j++) {
             const p0 = f0.rh_joints[j];
@@ -1347,21 +1354,26 @@
           rhBoneLines.geometry.attributes.position.needsUpdate = true;
         }
 
-        // Animate Workpiece Translation (Padlock)
-        if (workpieceMesh && f0.lock_pos && f1.lock_pos) {
-          const x = f0.lock_pos[0] + (f1.lock_pos[0] - f0.lock_pos[0]) * alpha;
-          const y = f0.lock_pos[1] + (f1.lock_pos[1] - f0.lock_pos[1]) * alpha;
-          const z = f0.lock_pos[2] + (f1.lock_pos[2] - f0.lock_pos[2]) * alpha;
+        // Animate Workpiece Translation
+        const wpPos0 = f0.workpiece_pos || f0.lock_pos;
+        const wpPos1 = f1.workpiece_pos || f1.lock_pos;
+        if (workpieceMesh && wpPos0 && wpPos1) {
+          const x = wpPos0[0] + (wpPos1[0] - wpPos0[0]) * alpha;
+          const y = wpPos0[1] + (wpPos1[1] - wpPos0[1]) * alpha;
+          const z = wpPos0[2] + (wpPos1[2] - wpPos0[2]) * alpha;
           workpieceMesh.position.set(x, z, -y);
         }
 
-        // Animate Tool (Needle)
+        // Animate Tool
         if (toolMesh) {
-          toolMesh.visible = Boolean(f0.needle_visible);
-          if (toolMesh.visible && f0.tool_tip && f1.tool_tip) {
-            const tx = f0.tool_tip[0] + (f1.tool_tip[0] - f0.tool_tip[0]) * alpha;
-            const ty = f0.tool_tip[1] + (f1.tool_tip[1] - f0.tool_tip[1]) * alpha;
-            const tz = f0.tool_tip[2] + (f1.tool_tip[2] - f0.tool_tip[2]) * alpha;
+          const isToolVis = f0.tool_visible !== undefined ? Boolean(f0.tool_visible) : (f0.needle_visible !== undefined ? Boolean(f0.needle_visible) : true);
+          toolMesh.visible = isToolVis;
+          const tPos0 = f0.tool_tip || f0.tool_pos;
+          const tPos1 = f1.tool_tip || f1.tool_pos;
+          if (toolMesh.visible && tPos0 && tPos1) {
+            const tx = tPos0[0] + (tPos1[0] - tPos0[0]) * alpha;
+            const ty = tPos0[1] + (tPos1[1] - tPos0[1]) * alpha;
+            const tz = tPos0[2] + (tPos1[2] - tPos0[2]) * alpha;
             toolMesh.position.set(tx, tz, -ty);
           }
         }
