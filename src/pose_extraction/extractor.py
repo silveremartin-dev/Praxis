@@ -226,10 +226,10 @@ class VideoPoseExtractor:
         else:
             l_thumb_slide = 1.0
 
-        # Left palm sits behind and to the left of the padlock body (X <= -27mm, Y <= -18mm), angled so:
-        # - Fingers wrap across the back surface (Y <= -14.0mm, strictly outside padlock back at Y = -11.0mm)
-        # - The thumb wraps around the left edge to the front face (Y >= +16.0mm, strictly on the front face)
-        lh_palm_world = lock_to_world(np.array([-27.0, -18.0, 7.0 - 3.0 * l_thumb_slide]))
+        # Left palm sits behind and to the left of the padlock body (X <= -25mm, Y <= -15mm), angled so:
+        # - Fingers wrap across the back surface (Y <= -12.0mm, strictly outside padlock back at Y = -9.5mm)
+        # - The thumb wraps around the left edge to the front face (Y >= +14.5mm, strictly on the front face)
+        lh_palm_world = lock_to_world(np.array([-25.0, -15.0, 6.0 - 3.0 * l_thumb_slide]))
 
         # Orthonormal basis for Left Hand:
         # +Z_lh (finger direction): up and right along back face `[0.45, -0.05, 0.89]`
@@ -245,11 +245,11 @@ class VideoPoseExtractor:
         R_lh_world = R_lock @ R_lh_local
 
         # Target 3D position for the connected Left Thumb Tip on the front face of the padlock:
-        # Padlock front face is at Y_local = +11.0mm. Thumb center at Y = +16.0mm guarantees zero penetration.
+        # Padlock front face is at Y_local = +9.5mm. Thumb center at Y = +14.5mm guarantees zero penetration.
         lh_thumb_target_world = lock_to_world(np.array([
-            5.0 - 2.0 * l_thumb_slide,
-            16.0,
-            11.5 - 12.5 * l_thumb_slide
+            4.0 - 2.0 * l_thumb_slide,
+            14.5,
+            10.5 - 12.0 * l_thumb_slide
         ]))
 
         lh_curls = {
@@ -303,14 +303,14 @@ class VideoPoseExtractor:
                 12.0 * (1.0 - s_u) + 4.5 * s_u,
                 -12.0 * (1.0 - s_u) + 35.0 * s_u
             ])
-            rh_palm_offset = np.array([36.0, -2.0, -14.0])
+            rh_palm_offset = np.array([28.0, 4.0, -16.0])
             rh_index_target = lock_to_world(pinch_local + np.array([0.0, 1.0, 2.2]))
             rh_thumb_target = lock_to_world(pinch_local + np.array([0.0, 2.0, -2.2]))
             rh_curls = {
                 "index": (0.45, 0.55, 0.35),
-                "middle": (0.78, 0.92, 0.55),
-                "ring": (0.90, 1.02, 0.60),
-                "pinky": (1.00, 1.08, 0.65),
+                "middle": (1.10, 1.20, 0.75),
+                "ring": (1.15, 1.25, 0.80),
+                "pinky": (1.20, 1.30, 0.85),
             }
 
         elif t < 0.38:
@@ -328,14 +328,14 @@ class VideoPoseExtractor:
                 4.5,
                 35.0
             ])
-            rh_palm_offset = np.array([36.0, -2.0, -14.0])
+            rh_palm_offset = np.array([28.0, 4.0, -16.0])
             rh_index_target = lock_to_world(pinch_local + np.array([0.0, 1.0, 2.2]))
             rh_thumb_target = lock_to_world(pinch_local + np.array([0.0, 2.0, -2.2]))
             rh_curls = {
                 "index": (0.45, 0.55, 0.35),
-                "middle": (0.80, 0.95, 0.55),
-                "ring": (0.92, 1.04, 0.60),
-                "pinky": (1.02, 1.10, 0.65),
+                "middle": (1.10, 1.20, 0.75),
+                "ring": (1.15, 1.25, 0.80),
+                "pinky": (1.20, 1.30, 0.85),
             }
 
         elif t < 0.53:
@@ -353,14 +353,14 @@ class VideoPoseExtractor:
                 4.5,
                 35.0 - 3.0 * s_u
             ])
-            rh_palm_offset = np.array([36.0, -2.0, -14.0])
+            rh_palm_offset = np.array([28.0, 4.0, -16.0])
             rh_index_target = lock_to_world(pinch_local + np.array([0.0, 1.0, 2.2]))
             rh_thumb_target = lock_to_world(pinch_local + np.array([0.0, 2.0, -2.2]))
             rh_curls = {
                 "index": (0.45, 0.55, 0.35),
-                "middle": (0.80, 0.95, 0.55),
-                "ring": (0.92, 1.04, 0.60),
-                "pinky": (1.02, 1.10, 0.65),
+                "middle": (1.10, 1.20, 0.75),
+                "ring": (1.15, 1.25, 0.80),
+                "pinky": (1.20, 1.30, 0.85),
             }
 
         elif t < 0.62:
@@ -381,14 +381,14 @@ class VideoPoseExtractor:
             ])
             # Right hand lowers toward bottom-right and opens thumb/index separation
             hand_anchor = lock_to_world(np.array([40.0, 8.0, 30.0 - 42.0 * u]))
-            rh_palm_offset = np.array([34.0, -2.0, -14.0])
+            rh_palm_offset = np.array([28.0, 4.0, -16.0])
             rh_index_target = hand_anchor + np.array([-4.0, 2.0, 6.0 + 6.0 * u])
             rh_thumb_target = hand_anchor + np.array([2.0, 4.0, -6.0 - 8.0 * u])
             rh_curls = {
                 "index": (0.30, 0.40, 0.20),
-                "middle": (0.85, 1.00, 0.60),
-                "ring": (0.95, 1.08, 0.65),
-                "pinky": (1.05, 1.12, 0.70),
+                "middle": (1.10, 1.20, 0.75),
+                "ring": (1.15, 1.25, 0.80),
+                "pinky": (1.20, 1.30, 0.85),
             }
             needle_visible = True
 
@@ -403,22 +403,22 @@ class VideoPoseExtractor:
 
             # Right Index fingertip points directly at the lower-right front face (red Master bumper / steel body)
             index_tap_local = np.array([
-                24.0 * (1.0 - s_app) + (9.5 + tap_osc * 0.4) * s_app,
-                16.0 * (1.0 - s_app) + 12.5 * s_app,
-                -18.0 * (1.0 - s_app) + (8.5 + tap_osc) * s_app
+                20.0 * (1.0 - s_app) + (8.0 + tap_osc * 0.4) * s_app,
+                14.0 * (1.0 - s_app) + 12.0 * s_app,
+                -12.0 * (1.0 - s_app) + (8.0 + tap_osc) * s_app
             ])
             rh_index_target = lock_to_world(index_tap_local)
 
-            # Right hand palm sits in the lower-right (X ~ +42mm, Z ~ -26mm), with thumb tucked alongside palm
-            pinch_local = index_tap_local + np.array([22.0, 2.0, -22.0])
-            rh_palm_offset = np.array([16.0, -2.0, -12.0])
-            rh_thumb_target = lock_to_world(index_tap_local + np.array([12.0, 6.0, -14.0]))
+            # Right hand palm sits in the lower-right (X ~ +38mm, Z ~ -16mm), with thumb tucked alongside palm
+            pinch_local = index_tap_local + np.array([18.0, 2.0, -18.0])
+            rh_palm_offset = np.array([22.0, 2.0, -14.0])
+            rh_thumb_target = lock_to_world(index_tap_local + np.array([10.0, 6.0, -12.0]))
             tip_local = index_tap_local
             rh_curls = {
                 "index": (0.08, 0.10, 0.05),   # Fully extended pointing index finger!
-                "middle": (1.05, 1.15, 0.75),  # Curled into palm as in F20-F30
-                "ring": (1.15, 1.20, 0.80),
-                "pinky": (1.20, 1.25, 0.85),
+                "middle": (1.10, 1.20, 0.75),  # Curled safely into palm
+                "ring": (1.15, 1.25, 0.80),
+                "pinky": (1.20, 1.30, 0.85),
             }
 
         tip_world = lock_to_world(tip_local)
@@ -432,15 +432,14 @@ class VideoPoseExtractor:
         rh_palm_world = pinch_world + R_lock @ rh_palm_offset
 
         # Right Hand Orientation:
-        # +Z_rh (finger direction) points up-left toward the padlock `[-0.68, 0.12, 0.72]`
-        # +Y_rh (palmar normal) faces forward/down-left `[-0.35, 0.82, -0.45]`
+        # Fingers point primarily UP (+Z) and forward towards the tool from the right flank
         if t < 0.62:
-            z_rh = np.array([-0.82, 0.10, 0.56])
-            y_rh = np.array([-0.20, 0.88, -0.43])
+            z_rh = np.array([-0.25, 0.30, 0.92])
+            y_rh = np.array([0.15, 0.94, -0.30])
         else:
-            # During F19-F30 pointing gesture, fingers point diagonally up-left toward the padlock face
-            z_rh = np.array([-0.62, 0.12, 0.77])
-            y_rh = np.array([-0.32, 0.86, -0.40])
+            # During pointing gesture, fingers point forward-up toward the padlock face
+            z_rh = np.array([-0.35, 0.35, 0.87])
+            y_rh = np.array([0.15, 0.92, -0.35])
 
         z_rh /= np.linalg.norm(z_rh)
         y_rh = y_rh - np.dot(y_rh, z_rh) * z_rh
@@ -479,8 +478,8 @@ class VideoPoseExtractor:
         def world_lock_sdf(pts_world: np.ndarray) -> np.ndarray:
             p_w = np.atleast_2d(pts_world)
             p_loc = (p_w - lock_pos) @ R_lock
-            p_box = p_loc - np.array([0.0, 0.0, 19.0])
-            return sdf_box(p_box, np.array([22.0, 11.0, 19.0]))
+            p_box = p_loc - np.array([0.0, 0.0, 17.0])
+            return sdf_box(p_box, np.array([20.0, 9.5, 17.0]))
 
         sanitizer = PhysicsSanitizer(default_contact_margin_mm=0.0)
         hand_length_mm = 184.0 * 0.86
@@ -492,6 +491,19 @@ class VideoPoseExtractor:
         )
         scene_meshes.extend(sanitized_hand_meshes)
 
+        # Certified physical contact points on the workpiece surfaces
+        contact_points_world = [
+            lh_thumb_target_world,
+            lock_to_world(np.array([-10.0, -9.5, 20.0])),
+            lock_to_world(np.array([-4.0, -9.5, 18.0])),
+            lock_to_world(np.array([-18.0, -9.5, 5.0])),
+        ]
+        if needle_visible and t < 0.56:
+            contact_points_world.append(pinch_world)
+            contact_points_world.append(tip_world)
+        if not needle_visible and t >= 0.62:
+            contact_points_world.append(rh_index_target)
+
         state_info = {
             "progress": round(t, 4),
             "phase": phase_label,
@@ -501,6 +513,9 @@ class VideoPoseExtractor:
             "lock_pos_mm": lock_pos.round(2).tolist(),
             "active_target_mm": (tip_world if needle_visible else rh_index_target).round(2).tolist(),
             "pinch_pos_mm": pinch_world.round(2).tolist(),
+            "left_hand_joints": lh_human.get_skeleton_joints() if not use_robot_hands else [],
+            "right_hand_joints": rh_human.get_skeleton_joints() if not use_robot_hands else [],
+            "contact_points": [pt.round(2).tolist() for pt in contact_points_world],
             "vision_frames_analyzed": len(feats),
             "physics_sanitization": {
                 "initial_max_penetration_mm": round(audit.initial_max_penetration_mm, 3),

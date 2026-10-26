@@ -273,6 +273,10 @@ class AnatomicalHandModel:
             "pinky": (19.5 * s, 13.0 * s, 10.0 * s, 5.0 * s),
         }
 
+        p_pip_dict: Dict[str, np.ndarray] = {}
+        p_dip_dict: Dict[str, np.ndarray] = {}
+        p_tip_dict: Dict[str, np.ndarray] = {}
+
         for fname, (l_prox, l_mid, l_dist, r_base) in finger_dims.items():
             p_mcp = mcp_points[fname]
 
@@ -305,6 +309,10 @@ class AnatomicalHandModel:
                 dir3 = np.array([0.0, np.sin(a3), np.cos(a3)])
                 dir3 /= np.linalg.norm(dir3)
                 p_tip = p_dip + dir3 * l_dist
+
+            p_pip_dict[fname] = p_pip
+            p_dip_dict[fname] = p_dip
+            p_tip_dict[fname] = p_tip
 
             parts.append((create_smooth_capsule(p_mcp, p_pip, r_base, r_base * 0.90, sections=14), "phalanx"))
             parts.append((create_smooth_capsule(p_pip, p_dip, r_base * 0.90, r_base * 0.80, sections=14), "phalanx"))
@@ -376,7 +384,39 @@ class AnatomicalHandModel:
             m_copy.apply_transform(T)
             transformed_parts.append((m_copy, ptype))
 
+        # 21 Anatomical Skeletal Joints in world coordinates
+        joint_points_local = [
+            p_wrist_mid,                          # 0: wrist
+            mcp_points["index"],                  # 1: mcp_index
+            p_pip_dict["index"],                  # 2: pip_index
+            p_dip_dict["index"],                  # 3: dip_index
+            p_tip_dict["index"],                  # 4: tip_index
+            mcp_points["middle"],                 # 5: mcp_middle
+            p_pip_dict["middle"],                 # 6: pip_middle
+            p_dip_dict["middle"],                 # 7: dip_middle
+            p_tip_dict["middle"],                 # 8: tip_middle
+            mcp_points["ring"],                   # 9: mcp_ring
+            p_pip_dict["ring"],                   # 10: pip_ring
+            p_dip_dict["ring"],                   # 11: dip_ring
+            p_tip_dict["ring"],                   # 12: tip_ring
+            mcp_points["pinky"],                  # 13: mcp_pinky
+            p_pip_dict["pinky"],                  # 14: pip_pinky
+            p_dip_dict["pinky"],                  # 15: dip_pinky
+            p_tip_dict["pinky"],                  # 16: tip_pinky
+            p_cmc,                                # 17: cmc_thumb
+            p_thenar_mcp,                         # 18: mcp_thumb
+            p_th_ip,                              # 19: ip_thumb
+            p_th_tip,                             # 20: tip_thumb
+        ]
+        self.last_skeleton_joints = [
+            (palm_center + palm_rot @ pt).round(2).tolist() for pt in joint_points_local
+        ]
+
         return transformed_parts
+
+    def get_skeleton_joints(self) -> List[List[float]]:
+        """Returns the 21 physiological joints in world coordinates."""
+        return getattr(self, "last_skeleton_joints", [])
 
 
 class DexterousRobotHandModel:

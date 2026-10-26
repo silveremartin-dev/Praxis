@@ -495,6 +495,7 @@
         <!-- 3D Tools -->
         <div class="canvas-tools">
           <button id="btnCameraReset" class="btn btn-secondary" style="padding:4px 8px; font-size:10px;">Reset Cam</button>
+          <button id="btnToggleSkeleton" class="btn btn-secondary" style="padding:4px 8px; font-size:10px; color:#38bdf8;">🦴 Skeleton [ON]</button>
           <button id="btnToggleWireframe" class="btn btn-secondary" style="padding:4px 8px; font-size:10px;">Wireframe</button>
           <button id="btnToggleContacts" class="btn btn-secondary" style="padding:4px 8px; font-size:10px; color:#34d399;">Contacts [ON]</button>
         </div>
@@ -709,9 +710,12 @@
     // Three.js & Demand-Driven Rendering
     let scene, camera, renderer, controls;
     let sceneGroup = null;
+    let skeletonGroup = null;
     let contactMarkersGroup = null;
     let toolMesh = null;
     let workpieceMesh = null;
+    let currentTrajectory = null;
+    let showSkeleton = true;
     let needsRender = true;
     function requestRender() { needsRender = true; }
 
@@ -761,13 +765,13 @@
       renderer.setPixelRatio(1);
       container.appendChild(renderer.domElement);
 
+      // Instantaneous 1:1 camera manipulation (ZERO lag, no damping inertia)
       controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.target.set(0, 10, 0);
-      controls.enableDamping = true;
-      controls.dampingFactor = 0.15;
+      controls.enableDamping = false;
       controls.maxDistance = 500;
       controls.minDistance = 20;
-      controls.addEventListener('change', requestRender);
+      controls.addEventListener('change', () => { renderer.render(scene, camera); });
 
       // Fast Lambert Lights
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
@@ -789,6 +793,11 @@
       sceneGroup.scale.x = -1; // Invert horizontal X so Left Hand renders on screen LEFT and Right Hand on screen RIGHT (matching video)
       scene.add(sceneGroup);
 
+      skeletonGroup = new THREE.Group();
+      skeletonGroup.scale.x = -1;
+      scene.add(skeletonGroup);
+      buildSkeletonMeshes();
+
       contactMarkersGroup = new THREE.Group();
       contactMarkersGroup.scale.x = -1;
       scene.add(contactMarkersGroup);
@@ -796,13 +805,69 @@
       // Demand-driven rendering: renders ONLY when camera moves, video advances, or sim plays
       function animate() {
         requestAnimationFrame(animate);
-        const cameraMoving = controls.update();
-        if (cameraMoving || needsRender || isSimPlaying) {
+        if (needsRender || isSimPlaying) {
           renderer.render(scene, camera);
           needsRender = false;
         }
       }
       animate();
+    }
+
+    const BONE_CONNECTIONS = [
+      // Thumb: Wrist(0) -> CMC(17) -> MCP(18) -> IP(19) -> TIP(20)
+      [0, 17], [17, 18], [18, 19], [19, 20],
+      // Index: Wrist(0) -> MCP(1) -> PIP(2) -> DIP(3) -> TIP(4)
+      [0, 1], [1, 2], [2, 3], [3, 4],
+      // Middle: Wrist(0) -> MCP(5) -> PIP(6) -> DIP(7) -> TIP(8)
+      [0, 5], [5, 6], [6, 7], [7, 8],
+      // Ring: Wrist(0) -> MCP(9) -> PIP(10) -> DIP(11) -> TIP(12)
+      [0, 9], [9, 10], [10, 11], [11, 12],
+      // Pinky: Wrist(0) -> MCP(13) -> PIP(14) -> DIP(15) -> TIP(16)
+      [0, 13], [13, 14], [14, 15], [15, 16],
+      // Transverse Knuckle Arch
+      [1, 5], [5, 9], [9, 13]
+    ];
+
+    let lhJointMeshes = [];
+    let rhJointMeshes = [];
+    let lhBoneLines = null;
+    let rhBoneLines = null;
+
+    function buildSkeletonMeshes() {
+      skeletonGroup.clear();
+      lhJointMeshes = [];
+      rhJointMeshes = [];
+
+      const jointGeo = new THREE.SphereGeometry(1.6, 8, 8);
+      const lhJointMat = new THREE.MeshPhongMaterial({ color: 0x34d399, specular: 0xa7f3d0, shininess: 40 });
+      const rhJointMat = new THREE.MeshPhongMaterial({ color: 0x38bdf8, specular: 0xbae6fd, shininess: 40 });
+
+      for (let i = 0; i < 21; i++) {
+        const m = new THREE.Mesh(jointGeo, lhJointMat);
+        skeletonGroup.add(m);
+        lhJointMeshes.push(m);
+      }
+      for (let i = 0; i < 21; i++) {
+        const m = new THREE.Mesh(jointGeo, rhJointMat);
+        skeletonGroup.add(m);
+        rhJointMeshes.push(m);
+      }
+
+      const numBones = BONE_CONNECTIONS.length;
+      const lhLinePos = new Float32Array(numBones * 2 * 3);
+      const rhLinePos = new Float32Array(numBones * 2 * 3);
+
+      const lhLineGeo = new THREE.BufferGeometry();
+      lhLineGeo.setAttribute('position', new THREE.BufferAttribute(lhLinePos, 3));
+      const lhLineMat = new THREE.LineBasicMaterial({ color: 0x10b981, linewidth: 2 });
+      lhBoneLines = new THREE.LineSegments(lhLineGeo, lhLineMat);
+      skeletonGroup.add(lhBoneLines);
+
+      const rhLineGeo = new THREE.BufferGeometry();
+      rhLineGeo.setAttribute('position', new THREE.BufferAttribute(rhLinePos, 3));
+      const rhLineMat = new THREE.LineBasicMaterial({ color: 0x0284c7, linewidth: 2 });
+      rhBoneLines = new THREE.LineSegments(rhLineGeo, rhLineMat);
+      skeletonGroup.add(rhBoneLines);
     }
 
     function onWindowResize() {
@@ -864,6 +929,19 @@
       document.getElementById('videoCodecBadge').textContent = `H.264 ${currentClip.fps || 30}fps`;
       document.getElementById('lblWorkpiece').textContent = currentClip.workpiece;
       document.getElementById('lblTool').textContent = currentClip.tool;
+
+      // Fetch dynamic 3D trajectory
+      try {
+        const trajRes = await fetch(`/api/clip/${clipId}/trajectory`);
+        if (trajRes.ok) {
+          currentTrajectory = await trajRes.json();
+        } else {
+          currentTrajectory = null;
+        }
+      } catch (err) {
+        console.warn('Trajectory fetch failed:', err);
+        currentTrajectory = null;
+      }
 
       // Update Dataset Links
       if (currentClip.parquet_url) {
@@ -1000,36 +1078,31 @@
             toolMesh = child;
           } else {
             child.material = handMat;
+            child.material.transparent = showSkeleton;
+            child.material.opacity = showSkeleton ? 0.35 : 0.99;
           }
         }
       });
 
       sceneGroup.add(obj);
-      generateContactMarkers();
-      controls.target.set(0, 0, 0);
+      controls.target.set(0, 10, 0);
       requestRender();
     }
 
-    function generateContactMarkers() {
+    function updateContactMarkers(contacts) {
       contactMarkersGroup.clear();
-      if (!showContacts) return;
+      if (!showContacts || !contacts || contacts.length === 0) return;
 
       const markerGeo = new THREE.SphereGeometry(1.6, 8, 8);
       const markerMat = new THREE.MeshBasicMaterial({ color: 0x10b981 });
 
-      const contactCoords = [
-        new THREE.Vector3(-8, 5, 10),
-        new THREE.Vector3(-12, -2, -8),
-        new THREE.Vector3(15, 3, 2),
-        new THREE.Vector3(14, -4, 0),
-        new THREE.Vector3(2, 12, 4)
-      ];
-
-      contactCoords.forEach(pos => {
+      contacts.forEach(pt => {
         const m = new THREE.Mesh(markerGeo, markerMat);
-        m.position.copy(pos);
+        // Convert CAD (X, Y, Z) to Three.js (X, Z, -Y)
+        m.position.set(pt[0], pt[2], -pt[1]);
         contactMarkersGroup.add(m);
       });
+    }
     }
 
     // ---------------- FAST EVENT LISTENERS ----------------
@@ -1103,8 +1176,21 @@
 
       // Viewport buttons
       document.getElementById('btnCameraReset').addEventListener('click', () => {
-        camera.position.set(0, 130, 240);
-        controls.target.set(0, 0, 0);
+        camera.position.set(0, 30, -220);
+        controls.target.set(0, 10, 0);
+        requestRender();
+      });
+
+      document.getElementById('btnToggleSkeleton').addEventListener('click', (e) => {
+        showSkeleton = !showSkeleton;
+        if (skeletonGroup) skeletonGroup.visible = showSkeleton;
+        sceneGroup.traverse((child) => {
+          if (child.isMesh && child !== workpieceMesh && child !== toolMesh) {
+            child.material.transparent = showSkeleton;
+            child.material.opacity = showSkeleton ? 0.35 : 0.99;
+          }
+        });
+        e.target.textContent = showSkeleton ? '🦴 Skeleton [ON]' : '🦴 Skeleton [OFF]';
         requestRender();
       });
 
@@ -1205,11 +1291,92 @@
         activePhaseIdx = foundIdx;
       }
 
-      // Smooth kinematic attitude rotation
-      if (sceneGroup && !isSimPlaying) {
-        sceneGroup.rotation.y = Math.sin(progress * Math.PI) * 0.12;
-        requestRender();
+      // Continuous 3D Kinematics from Video Demonstration Trajectory
+      if (currentTrajectory && currentTrajectory.frames && currentTrajectory.frames.length > 0) {
+        const frames = currentTrajectory.frames;
+        const norm = Math.max(0, Math.min(1, progress));
+        const exactIdx = norm * (frames.length - 1);
+        const idx0 = Math.floor(exactIdx);
+        const idx1 = Math.min(frames.length - 1, idx0 + 1);
+        const alpha = exactIdx - idx0;
+
+        const f0 = frames[idx0];
+        const f1 = frames[idx1];
+
+        // Animate Left Hand Skeleton Joints
+        if (f0.lh_joints && f1.lh_joints && lhJointMeshes.length === 21) {
+          const positions = lhBoneLines.geometry.attributes.position.array;
+          for (let j = 0; j < 21; j++) {
+            const p0 = f0.lh_joints[j];
+            const p1 = f1.lh_joints[j];
+            const x = p0[0] + (p1[0] - p0[0]) * alpha;
+            const y = p0[1] + (p1[1] - p0[1]) * alpha;
+            const z = p0[2] + (p1[2] - p0[2]) * alpha;
+            lhJointMeshes[j].position.set(x, z, -y); // Convert CAD to Three.js coordinates
+          }
+          let ptr = 0;
+          for (let b = 0; b < BONE_CONNECTIONS.length; b++) {
+            const [jA, jB] = BONE_CONNECTIONS[b];
+            const posA = lhJointMeshes[jA].position;
+            const posB = lhJointMeshes[jB].position;
+            positions[ptr++] = posA.x; positions[ptr++] = posA.y; positions[ptr++] = posA.z;
+            positions[ptr++] = posB.x; positions[ptr++] = posB.y; positions[ptr++] = posB.z;
+          }
+          lhBoneLines.geometry.attributes.position.needsUpdate = true;
+        }
+
+        // Animate Right Hand Skeleton Joints
+        if (f0.rh_joints && f1.rh_joints && rhJointMeshes.length === 21) {
+          const positions = rhBoneLines.geometry.attributes.position.array;
+          for (let j = 0; j < 21; j++) {
+            const p0 = f0.rh_joints[j];
+            const p1 = f1.rh_joints[j];
+            const x = p0[0] + (p1[0] - p0[0]) * alpha;
+            const y = p0[1] + (p1[1] - p0[1]) * alpha;
+            const z = p0[2] + (p1[2] - p0[2]) * alpha;
+            rhJointMeshes[j].position.set(x, z, -y);
+          }
+          let ptr = 0;
+          for (let b = 0; b < BONE_CONNECTIONS.length; b++) {
+            const [jA, jB] = BONE_CONNECTIONS[b];
+            const posA = rhJointMeshes[jA].position;
+            const posB = rhJointMeshes[jB].position;
+            positions[ptr++] = posA.x; positions[ptr++] = posA.y; positions[ptr++] = posA.z;
+            positions[ptr++] = posB.x; positions[ptr++] = posB.y; positions[ptr++] = posB.z;
+          }
+          rhBoneLines.geometry.attributes.position.needsUpdate = true;
+        }
+
+        // Animate Workpiece Translation (Padlock)
+        if (workpieceMesh && f0.lock_pos && f1.lock_pos) {
+          const x = f0.lock_pos[0] + (f1.lock_pos[0] - f0.lock_pos[0]) * alpha;
+          const y = f0.lock_pos[1] + (f1.lock_pos[1] - f0.lock_pos[1]) * alpha;
+          const z = f0.lock_pos[2] + (f1.lock_pos[2] - f0.lock_pos[2]) * alpha;
+          workpieceMesh.position.set(x, z, -y);
+        }
+
+        // Animate Tool (Needle)
+        if (toolMesh) {
+          toolMesh.visible = Boolean(f0.needle_visible);
+          if (toolMesh.visible && f0.tool_tip && f1.tool_tip) {
+            const tx = f0.tool_tip[0] + (f1.tool_tip[0] - f0.tool_tip[0]) * alpha;
+            const ty = f0.tool_tip[1] + (f1.tool_tip[1] - f0.tool_tip[1]) * alpha;
+            const tz = f0.tool_tip[2] + (f1.tool_tip[2] - f0.tool_tip[2]) * alpha;
+            toolMesh.position.set(tx, tz, -ty);
+          }
+        }
+
+        // Animate Certified Real Contact Points
+        if (f0.contacts) {
+          updateContactMarkers(f0.contacts);
+        }
       }
+
+      // Smooth kinematic attitude rotation for scene body
+      if (sceneGroup && !isSimPlaying) {
+        sceneGroup.rotation.y = Math.sin(progress * Math.PI) * 0.08;
+      }
+      requestRender();
     }
 
     // ---------------- ROBOT SPECS ----------------

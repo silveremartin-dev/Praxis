@@ -66,7 +66,7 @@ def build_masterlock_scene(output_dir: str = "data/processed", progress: float =
                 "category": "laminated_steel_padlock",
                 "material": "hardened_steel_and_vinyl",
                 "mass_grams": 195.0,
-                "dimensions_mm": {"width": 44.0, "thickness": 22.0, "height": 38.0, "shackle_diameter": 7.5},
+                "dimensions_mm": {"width": 40.0, "thickness": 19.0, "height": 34.0, "shackle_diameter": 7.0},
                 "shackle_state": "open_swung_left_180deg"
             },
             {
@@ -83,7 +83,7 @@ def build_masterlock_scene(output_dir: str = "data/processed", progress: float =
                 "category": "laminated_steel_padlock",
                 "material": "hardened_steel_and_vinyl",
                 "mass_grams": 195.0,
-                "dimensions_mm": {"width": 44.0, "thickness": 22.0, "height": 38.0, "shackle_diameter": 7.5},
+                "dimensions_mm": {"width": 40.0, "thickness": 19.0, "height": 34.0, "shackle_diameter": 7.0},
                 "shackle_state": "open_swung_left_180deg"
             },
             {

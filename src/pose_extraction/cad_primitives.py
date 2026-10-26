@@ -42,34 +42,34 @@ class ParametricCADBuilder:
     def build_laminated_padlock(
         pos: np.ndarray,
         rot: np.ndarray,
-        width: float = 44.0,
-        thickness: float = 22.0,
-        height: float = 38.0,
+        width: float = 40.0,
+        thickness: float = 19.0,
+        height: float = 34.0,
         shackle_open_left: bool = True
     ) -> List[Tuple[trimesh.Trimesh, str, float]]:
         """
         Builds a coherent laminated steel padlock assembly transformed rigidly by (pos, rot).
-        Dimensions match Master Lock Commercial No. 3:
-        - 44mm wide x 22mm thick x 38mm high body
-        - 7.5mm diameter hardened steel shackle with 180° swing
-        - 9mm lower red vinyl bumper
+        Dimensions match Master Lock No. 3:
+        - 40mm wide x 19mm thick x 34mm high body
+        - 7mm diameter hardened steel shackle with 180° swing
+        - 7.5mm lower red vinyl bumper
         """
         raw_parts: List[Tuple[trimesh.Trimesh, str, float]] = []
 
-        # 1. Lower Red Vinyl Bumper Band (Z = 0 to 9mm)
-        bumper = trimesh.creation.box(extents=[width + 1.4, thickness + 1.2, 9.0])
-        bumper.apply_translation([0.0, 0.0, 4.5])
+        # 1. Lower Red Vinyl Bumper Band (Z = 0 to 7.5mm)
+        bumper = trimesh.creation.box(extents=[width + 1.2, thickness + 1.0, 7.5])
+        bumper.apply_translation([0.0, 0.0, 3.75])
         raw_parts.append((bumper, "#d32f2f", 0.99))
 
-        # 2. Laminated Steel Core (Z = 9 to height=38mm)
-        core_h = height - 9.0
+        # 2. Laminated Steel Core (Z = 7.5 to height=34mm)
+        core_h = height - 7.5
         main_core = trimesh.creation.box(extents=[width - 0.4, thickness - 0.2, core_h])
-        main_core.apply_translation([0.0, 0.0, 9.0 + core_h / 2.0])
+        main_core.apply_translation([0.0, 0.0, 7.5 + core_h / 2.0])
         raw_parts.append((main_core, "#b0bec5", 0.99))
 
         # Horizontal lamination ribs for realistic laminated plate texture
-        for z_rib in np.linspace(11.5, height - 2.5, 7):
-            rib = trimesh.creation.box(extents=[width + 0.3, thickness + 0.3, 2.0])
+        for z_rib in np.linspace(9.5, height - 2.5, 6):
+            rib = trimesh.creation.box(extents=[width + 0.3, thickness + 0.3, 1.8])
             rib.apply_translation([0.0, 0.0, float(z_rib)])
             raw_parts.append((rib, "#cfd8dc", 0.99))
 
