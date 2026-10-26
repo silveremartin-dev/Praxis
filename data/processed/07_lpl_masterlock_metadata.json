@@ -1,0 +1,119 @@
+{
+  "dataset_name": "Praxis_V2PDT_LockBypass_07",
+  "video_source": {
+    "title": "LockPickingLawyer - Master Lock No. 3 Bypass Decoding",
+    "clip_file": "LPL_MasterLock_No3_clip_40s_50s.mp4",
+    "source_raw_video": "LPL_MasterLock_No3.mp4",
+    "resolution": [
+      1280,
+      720
+    ],
+    "fps": 29.97
+  },
+  "rigid_objects_3d": [
+    {
+      "id": "master_lock_no3_body",
+      "category": "laminated_steel_padlock",
+      "material": "hardened_steel_and_vinyl",
+      "mass_grams": 195.0,
+      "dimensions_mm": {
+        "width": 40.0,
+        "thickness": 19.0,
+        "height": 34.0,
+        "shackle_diameter": 7.0
+      },
+      "shackle_state": "open_swung_left_180deg"
+    },
+    {
+      "id": "bypass_decoder_needle",
+      "category": "precision_locksmith_probe",
+      "material": "spring_stainless_steel",
+      "mass_grams": 4.5,
+      "dimensions_mm": {
+        "blade_length": 42.0,
+        "blade_width": 1.2,
+        "blade_thickness": 0.5
+      }
+    }
+  ],
+  "objects": [
+    {
+      "id": "master_lock_no3_body",
+      "category": "laminated_steel_padlock",
+      "material": "hardened_steel_and_vinyl",
+      "mass_grams": 195.0,
+      "dimensions_mm": {
+        "width": 40.0,
+        "thickness": 19.0,
+        "height": 34.0,
+        "shackle_diameter": 7.0
+      },
+      "shackle_state": "open_swung_left_180deg"
+    },
+    {
+      "id": "bypass_decoder_needle",
+      "category": "precision_locksmith_probe",
+      "material": "spring_stainless_steel",
+      "mass_grams": 4.5,
+      "dimensions_mm": {
+        "blade_length": 42.0,
+        "blade_width": 1.2,
+        "blade_thickness": 0.5
+      }
+    }
+  ],
+  "hand_object_interaction": {
+    "bimanual": true,
+    "left_hand_role": "Connected 5-finger palmar cradle with opposing left thumb sliding down at t=5.5s to expose red Master bumper",
+    "right_hand_role": "Connected thumb-index pinch sliding bypass needle horizontally (0-5.2s), dropping needle (5.5-5.8s), and pointing with right index finger (6.2-10.0s)",
+    "contact_points": [
+      {
+        "finger": "left_thumb_pad",
+        "target_component": "padlock_front_face",
+        "position_mm": [
+          10.0,
+          13.5,
+          11.5
+        ],
+        "normal_force_newtons": 8.5,
+        "sdf_distance_mm": 0.0
+      },
+      {
+        "finger": "right_thumb_index_pinch",
+        "target_component": "decoder_handle",
+        "position_mm": [
+          26.48,
+          3.79,
+          56.81
+        ],
+        "normal_force_newtons": 3.4,
+        "sdf_distance_mm": 0.0
+      }
+    ],
+    "interpenetration_audit": {
+      "max_penetration_mm": 0.0,
+      "constraint_satisfied": true
+    }
+  },
+  "kinematic_trajectory": {
+    "action_type": "bimanual_insertion_release_and_pointing",
+    "insertion_axis": [
+      -1.0,
+      0.0,
+      0.0
+    ],
+    "stroke_depth_mm": 19.0,
+    "axial_thrust_force_newtons": 1.8,
+    "target_robot_urdf": "inspire_dexterous_bimanual",
+    "urdf_feasibility_score": 0.992
+  },
+  "lerobot_export_compatibility": {
+    "urdf_retargetable": true,
+    "verified_zero_penetration": true,
+    "target_embodiments": [
+      "inspire_dexterous_hand",
+      "unitree_h1_2",
+      "aloha_vx300s"
+    ]
+  }
+}

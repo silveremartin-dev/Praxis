@@ -83,13 +83,14 @@ class VideoQualityAuditor:
 
         rejection_reasons = []
 
-        # 1. Single-Shot Continuity Audit
-        step = max(1, n_frames // sample_frames)
-        prev_gray = None
-        max_diff = 0.0
-        cuts = 0
+        # 1. Single-Shot Continuity Audit (Evaluated across consecutive frames)
+        from src.ingestion.shot_detector import ShotBoundaryDetector
+        shot_audit = ShotBoundaryDetector.audit_shot_continuity(video_path, 0.0, duration, sample_step=3)
+        cuts = shot_audit.num_cuts_detected
+        max_diff = shot_audit.max_interframe_difference
 
         # Hand & Object presence metrics
+        step = max(1, n_frames // sample_frames)
         lh_seen = 0
         rh_seen = 0
         skin_coverages = []
@@ -104,14 +105,6 @@ class VideoQualityAuditor:
 
             audited_count += 1
             small = cv2.resize(frame, (320, 180))
-            gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
-
-            if prev_gray is not None:
-                diff = float(np.mean(np.abs(gray.astype(float) - prev_gray.astype(float))) / 255.0)
-                max_diff = max(max_diff, diff)
-                if diff > cls.FRAME_DIFF_CUT_THRESHOLD:
-                    cuts += 1
-            prev_gray = gray
 
             # Skin & Hand detection
             ycrcb = cv2.cvtColor(small, cv2.COLOR_BGR2YCrCb)

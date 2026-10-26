@@ -499,10 +499,11 @@
 
       <!-- Bottom Metadata -->
       <div class="meta-bar">
+        <div class="meta-row"><span>Parent Source:</span><span id="lblParentVideo" class="meta-val" style="color:#a78bfa; font-weight:600;">LPL Master Lock No. 3</span></div>
         <div class="meta-row"><span>Workpiece:</span><span id="lblWorkpiece" class="meta-val">Master Lock No. 3</span></div>
         <div class="meta-row"><span>Tool:</span><span id="lblTool" class="meta-val">Bypass Needle (0.5mm)</span></div>
         <div class="meta-row"><span>Grasp Taxonomy:</span><span id="lblGraspTaxonomy" class="meta-val" style="color:#38bdf8;">Thumb-Index Pinch</span></div>
-        <div class="meta-row"><span>Penetration &amp;ROM:</span><span style="color:#34d399; font-weight:bold;">0.00 mm | &le;180&deg; (No Hyperext.)</span></div>
+        <div class="meta-row"><span>Penetration &amp; ROM:</span><span style="color:#34d399; font-weight:bold;">0.00 mm | &le;180&deg; (No Hyperext.)</span></div>
       </div>
     </section>
 
@@ -1084,13 +1085,26 @@
         clipsCatalog = await res.json();
 
         clipSelect.innerHTML = '';
+        const groups = {};
         clipsCatalog.forEach(c => {
+          let gName = 'Multi-Shot Demonstration Sequences';
+          if (c.parent_video) {
+            if (c.parent_video.includes('Abus')) gName = 'LockPickingLawyer — Abus Titalium 80TI/40';
+            else if (c.parent_video.includes('MasterLock')) gName = 'LockPickingLawyer — Master Lock No. 3';
+            else if (c.parent_video.includes('DropKey')) gName = 'LockPickingLawyer — Drop Key Cylinder';
+          }
+          if (!groups[gName]) {
+            const optGroup = document.createElement('optgroup');
+            optGroup.label = gName;
+            groups[gName] = optGroup;
+            clipSelect.appendChild(optGroup);
+          }
           const opt = document.createElement('option');
           opt.value = c.id;
           const g = c.grade || 'A+';
           const score = Math.round(c.quality_score || 90);
-          opt.textContent = `[${g} ${score}/100] ${c.id.split('_')[0]} | ${c.title}`;
-          clipSelect.appendChild(opt);
+          opt.textContent = `[${g} ${score}/100] ${c.title}`;
+          groups[gName].appendChild(opt);
         });
 
         if (clipsCatalog.length > 0) {
@@ -1158,6 +1172,8 @@
           elQuality.style.background = '#7f1d1d';
         }
       }
+      const elParent = document.getElementById('lblParentVideo');
+      if (elParent) elParent.textContent = currentClip.parent_video || 'LockPickingLawyer Demonstration';
       document.getElementById('lblWorkpiece').textContent = currentClip.workpiece || '—';
       document.getElementById('lblTool').textContent = currentClip.tool || '—';
 
@@ -1259,15 +1275,11 @@
       camera.position.set(0, 26, 195);
       controls.target.set(0, 18, 0);
 
-      if (clipId === '07_lpl_masterlock') {
+      if (clipId.includes('masterlock') || clipId === '07_lpl_masterlock') {
         buildContouredMasterLockRig(dynamicWorkpieceGroup, dynamicToolGroup);
-      } else if (clipId === '09_lpl_abus_80ti40') {
+      } else if (clipId.includes('abus') || clipId === '09_lpl_abus_80ti40') {
         buildAbusPadlockRig(dynamicWorkpieceGroup, dynamicToolGroup);
-      } else if (clipId === '08_american_lock_1100') {
-        buildAmericanLock1100Rig(dynamicWorkpieceGroup, dynamicToolGroup);
-      } else if (clipId === '02_ifixit_dualsense') {
-        buildDualSenseRig(dynamicWorkpieceGroup, dynamicToolGroup);
-      } else if (clipId === '01_lpl_dropkey') {
+      } else if (clipId.includes('dropkey') || clipId === '01_lpl_dropkey') {
         buildDropKeyRig(dynamicWorkpieceGroup, dynamicToolGroup);
       } else {
         buildContouredMasterLockRig(dynamicWorkpieceGroup, dynamicToolGroup);
@@ -1276,13 +1288,8 @@
       // Dynamic Workpiece Scaling from Automated Inter-Hand Gap Detection (Never Oversized)
       if (currentTrajectory && currentTrajectory.workpiece_dims_mm) {
         const dims = currentTrajectory.workpiece_dims_mm;
-        if (clipId === '07_lpl_masterlock' || clipId === '09_lpl_abus_80ti40') {
-          const s = Math.min(1.0, Math.max(0.65, (dims.width || 28.0) / 38.0));
-          dynamicWorkpieceGroup.scale.set(s, s, s);
-        } else if (clipId === '01_lpl_dropkey') {
-          const s = Math.min(1.0, Math.max(0.65, (dims.width || 24.0) / 32.0));
-          dynamicWorkpieceGroup.scale.set(s, s, s);
-        }
+        const s = Math.min(1.0, Math.max(0.65, (dims.width || 28.0) / 38.0));
+        dynamicWorkpieceGroup.scale.set(s, s, s);
       }
 
       controls.update();

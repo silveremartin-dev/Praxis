@@ -1,0 +1,32 @@
+{
+  "clip_file": "09_abus_shot1_key_check.mp4",
+  "source_raw_video": "09_LPL_Abus_80TI40.mp4",
+  "timing": {
+    "t_start_seconds": 6.0,
+    "t_end_seconds": 18.0,
+    "duration_seconds": 12.03,
+    "fps": 30.0,
+    "total_frames": 361
+  },
+  "action_annotation": {
+    "what_is_the_person_doing": "Abus 80TI/40 key insertion, 90° clockwise plug rotation, shackle pop, key relock & extraction",
+    "action_verb": "insert",
+    "target_tool": "Abus standard brass pin tumbler key",
+    "target_workpiece": "Abus 80TI/40 Titalium Padlock Body & Shackle (14x10x20mm, 175g)",
+    "hand_engagement": "bi-manual bare hands (LH body cradle, RH thumb-index key grip)",
+    "camera_context": "static_macro"
+  },
+  "task_teleology": {
+    "is_goal_directed": true,
+    "is_state_irreversible": true,
+    "pre_condition": "Padlock locked with shackle closed; key held ready outside keyway",
+    "post_condition": "Key inserted, shackle unlocked & opened, key returned and extracted",
+    "action_verb": "insert"
+  },
+  "physical_affordances": {},
+  "next_pipeline_stages": [
+    "src.pose_extraction.hand_mesh",
+    "src.physics_sanitizer.sdf_optimizer",
+    "src.feasibility.urdf_auditor"
+  ]
+}

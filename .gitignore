@@ -53,6 +53,7 @@ data/clips/*
 !data/clips/*.json
 data/processed/*
 !data/processed/.gitkeep
+!data/processed/*.json
 models/checkpoints/
 *.pth
 *.pt

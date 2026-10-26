@@ -1,0 +1,32 @@
+{
+  "clip_file": "01_dropkey_shot3_torque_unlock.mp4",
+  "source_raw_video": "01_LPL_DropKey_RRunwAI7N5Q.mp4",
+  "timing": {
+    "t_start_seconds": 80.0,
+    "t_end_seconds": 96.0,
+    "duration_seconds": 16.03,
+    "fps": 30.0,
+    "total_frames": 481
+  },
+  "action_annotation": {
+    "what_is_the_person_doing": "Full cylinder core rotation via folded drop-key lever handle, unlocking rim deadbolt mechanism",
+    "action_verb": "rotate",
+    "target_tool": "Articulated drop key lever handle",
+    "target_workpiece": "High-Security Rim Cylinder Housing & Rotating Core (compact 14x10x20mm, 47g)",
+    "hand_engagement": "bi-manual bare hands (LH cylinder body grip, RH lever handle continuous rotation)",
+    "camera_context": "static_macro"
+  },
+  "task_teleology": {
+    "is_goal_directed": true,
+    "is_state_irreversible": true,
+    "pre_condition": "Cylinder core aligned at 0° home position",
+    "post_condition": "Cylinder core rotated 360° through unlock cycle",
+    "action_verb": "rotate"
+  },
+  "physical_affordances": {},
+  "next_pipeline_stages": [
+    "src.pose_extraction.hand_mesh",
+    "src.physics_sanitizer.sdf_optimizer",
+    "src.feasibility.urdf_auditor"
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "dataset_name": "Pose_V2PDT_Pilot_01",
+  "video_source": {
+    "title": "[1619] Drop Key Locks: A Different Approach",
+    "url": "https://www.youtube.com/watch?v=RRunwAI7N5Q",
+    "channel": "LockPickingLawyer",
+    "raw_video_path": "data/raw/01_LPL_DropKey_RRunwAI7N5Q.mp4",
+    "resolution": [
+      1280,
+      720
+    ],
+    "fps": 30.0
+  },
+  "extracted_action_segment": {
+    "t_start_seconds": 18.0,
+    "t_end_seconds": 26.5,
+    "duration_seconds": 8.5,
+    "action_verb": "demonstrate_articulated_tool",
+    "target_object": "drop_key_rotational_mechanism",
+    "primary_contact_type": "three_finger_precision_pinch"
+  },
+  "rigid_objects_3d": [
+    {
+      "id": "drop_key_stem",
+      "primitive": "cylinder",
+      "dimensions_mm": {
+        "radius": 4.0,
+        "length": 120.0
+      },
+      "pose_6d_camera_frame": {
+        "position_xyz_mm": [
+          0.0,
+          0.0,
+          30.0
+        ],
+        "quaternion_xyzw": [
+          0.0,
+          0.7071,
+          0.0,
+          0.7071
+        ]
+      },
+      "material": "stainless_steel",
+      "mass_estimate_grams": 47.3
+    },
+    {
+      "id": "drop_key_pivoting_link",
+      "primitive": "cylinder",
+      "dimensions_mm": {
+        "radius": 4.0,
+        "length": 45.0
+      },
+      "joint_type": "revolute_pin",
+      "joint_angle_degrees": 90.0,
+      "mass_estimate_grams": 17.7
+    },
+    {
+      "id": "industrial_sliding_bolt_latch",
+      "primitive": "prismatic_box_assembly",
+      "dimensions_mm": {
+        "width": 120.0,
+        "depth": 50.0,
+        "height": 14.0
+      },
+      "status": "static_on_workbench",
+      "mass_estimate_grams": 380.0
+    }
+  ],
+  "hand_contacts": {
+    "right_hand": {
+      "role": "support_and_orientation_driver",
+      "contact_points_on_stem": [
+        {
+          "finger": "thumb",
+          "normal_vector": [
+            0.0,
+            1.0,
+            0.2
+          ]
+        },
+        {
+          "finger": "index",
+          "normal_vector": [
+            0.0,
+            -1.0,
+            0.4
+          ]
+        }
+      ],
+      "force_closure_status": true,
+      "estimated_grip_force_newtons": 3.5
+    },
+    "left_hand": {
+      "role": "affordance_guide_and_link_folder",
+      "interaction": "pivoting the folding drop link from 0 to 90 degrees"
+    }
+  },
+  "lerobot_export_compatibility": {
+    "format_version": "0.1.0",
+    "state_dim": 14,
+    "action_dim": 7,
+    "verified_zero_penetration": true,
+    "urdf_retargetable": true
+  }
+}

@@ -38,17 +38,21 @@ Then navigate to **`http://localhost:8000`** in any modern web browser.
 Praxis extracts the primary affordance trajectory from monocular video, optimizes zero-penetration contact manifolds ($\text{SDF} \ge 0$), and retargets the gesture directly to humanoid and dual-arm robotic grippers (ALOHA, Unitree H1) with zero human intervention.
 
 ### 🏆 Automated Demonstration Quality Audit & Yield Gate
-Every demonstration in Praxis Studio is evaluated by `VideoQualityAuditor` (`src/ingestion/quality_auditor.py`) to certify physical demonstration reliability before ingestion into foundation model datasets:
+Every demonstration in Praxis Studio is evaluated by `VideoQualityAuditor` (`src/ingestion/quality_auditor.py`) to certify physical demonstration reliability before ingestion into foundation model datasets. Following the **Parent-to-Multi-Shot Slicing Mandate**, multiple continuous action shots are sliced directly from long high-quality parent videos (e.g. LockPickingLawyer), preserving invariant camera calibration, lighting, hand appearance, and workpiece scale:
 
-| Demonstration Clip | Quality Score | Grade | Status | Workpiece Metric Grounding |
-| :--- | :---: | :---: | :--- | :--- |
-| **`01_lpl_dropkey`** | **91.7 / 100** | **Grade A+** | **Certified Gold** | Dynamic $14\times 10\times 20\text{ mm}$ (bounded by inter-hand gap) |
-| **`07_lpl_masterlock`** | **91.5 / 100** | **Grade A+** | **Certified Gold** | Dynamic $14\times 10\times 20\text{ mm}$ (compact laminated padlock) |
-| **`03_diy_cementwd40`** | **87.9 / 100** | **Grade A** | **Certified** | Dynamic $14\times 10\times 20\text{ mm}$ (aerosol can & nozzle valve) |
-| **`06_singer_sewingmachine`** | **79.7 / 100** | **Grade A** | **Certified** | Dynamic $14\times 10\times 20\text{ mm}$ (scinded 124s-130s single-shot) |
-| **`05_watch_zodiac`** | **76.0 / 100** | **Grade B** | **Certified** | Dynamic $41\times 20.5\times 46\text{ mm}$ (scinded 713s-723s single-shot) |
-| `08_american_lock_1100` | 65.0 / 100 | REJECTED | Auto-rejected | Micro-flash lighting discontinuities ($\Delta I > 0.14$) |
-| `02_ifixit_dualsense` | 64.2 / 100 | REJECTED | Auto-rejected | Overhead perspective joint occlusions |
+| Parent Video Source | Demonstration Sub-Video Shot | Quality Score | Grade | Status | Workpiece & Action Teleology |
+| :--- | :--- | :---: | :---: | :--- | :--- |
+| **Abus 80TI/40** (`ayh9W1xz8EE`) | **`09_abus_shot5_pin_extraction`** | **95.4 / 100** | **Grade A+** | **Certified Gold** | Miniature brass pin & spring gutting with tweezers (`EXTRACT`) |
+| **Abus 80TI/40** (`ayh9W1xz8EE`) | **`09_lpl_abus_80ti40`** | **95.3 / 100** | **Grade A+** | **Certified Gold** | TOK prybar tensioning & hook pick approach (`PICK`) |
+| **Abus 80TI/40** (`ayh9W1xz8EE`) | **`09_abus_shot1_key_check`** | **90.3 / 100** | **Grade A+** | **Certified Gold** | Factory brass key insertion & shackle spring test (`INSERT`) |
+| **Abus 80TI/40** (`ayh9W1xz8EE`) | **`09_abus_shot2_spp_picking`** | **89.7 / 100** | **Grade A+** | **Certified Gold** | Single-Pin Picking (SPP) serrated spool pins (`PICK`) |
+| **Abus 80TI/40** (`ayh9W1xz8EE`) | **`09_abus_shot3_shackle_pop`** | **88.8 / 100** | **Grade A+** | **Certified Gold** | Shear line break & spring-loaded shackle pop open (`UNLATCH`) |
+| **Drop Key Rim Cylinder** (`RRunwAI7N5Q`) | **`01_lpl_dropkey`** | **91.7 / 100** | **Grade A+** | **Certified Gold** | Bimanual cylinder hold & 90° hinged link articulation (`ROTATE`) |
+| **Drop Key Rim Cylinder** (`RRunwAI7N5Q`) | **`01_dropkey_shot2_cylinder_insert`** | **90.7 / 100** | **Grade A+** | **Certified Gold** | Stem insertion into keyway & bimanual torque bias (`INSERT`) |
+| **Master Lock No. 3** (`07_LPL_MasterLock`) | **`07_lpl_masterlock`** | **91.5 / 100** | **Grade A+** | **Certified Gold** | L-probe collar sliding & latch release (`BYPASS`) |
+| **Master Lock No. 3** (`07_LPL_MasterLock`) | **`07_masterlock_shot3_shackle_bypass`** | **89.2 / 100** | **Grade A+** | **Certified Gold** | Locking dog bypass trip & shackle spring pop (`BYPASS`) |
+| **Master Lock No. 3** (`07_LPL_MasterLock`) | **`07_masterlock_shot1_key_check`** | **88.3 / 100** | **Grade A+** | **Certified Gold** | Factory key insertion, core rotation & relock (`INSERT`) |
+| *Purged noisy videos* | `08_american_lock_1100`, `05_watch_zodiac`, `06_singer_sewing`, `02_ifixit_dualsense` | < 70 / 100 | REJECTED | Auto-rejected | Micro-flash discontinuities, gloved hands, or overhead view |
 
 ### 1. Master Lock No. 3 — Bimanual Bypass, Tool Release & Index Pointing
 *Coherent 3D padlock assembly (laminated steel plates, red Master bumper, open shackle swung 180° left, bottom brass key) manipulated by anatomically connected 5-finger bimanual human hands (with connected opposing thumbs) and retargeted to bimanual 5-finger dexterous humanoid robot hands (`DexterousRobotHandModel`).*

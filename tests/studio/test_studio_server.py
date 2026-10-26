@@ -137,3 +137,28 @@ def test_dynamic_port_finder():
     port = find_available_port(start_port=8055)
     assert isinstance(port, int)
     assert 8055 <= port <= 8155
+
+
+def test_multishot_catalog_and_trajectories():
+    """Verify that parent video multi-shot demonstrations are present and have valid 3D trajectories."""
+    response = client.get("/api/clips")
+    assert response.status_code == 200
+    clips = response.json()
+    assert len(clips) >= 10
+
+    # Verify that multi-shot parent videos are referenced
+    parents = {c.get("parent_video") for c in clips if c.get("parent_video")}
+    assert "09_LPL_Abus_80TI40.mp4" in parents
+    assert "LPL_MasterLock_No3.mp4" in parents
+    assert "01_LPL_DropKey_RRunwAI7N5Q.mp4" in parents
+
+    # Verify that trajectory endpoints return continuous 3D keyframes
+    for clip_id in ["09_abus_shot1_key_check", "07_masterlock_shot1_key_check", "01_dropkey_shot2_cylinder_insert"]:
+        res = client.get(f"/api/clip/{clip_id}/trajectory")
+        assert res.status_code == 200
+        traj = res.json()
+        assert "frames" in traj
+        assert len(traj["frames"]) > 10
+        assert "lh_joints" in traj["frames"][0]
+        assert "rh_joints" in traj["frames"][0]
+

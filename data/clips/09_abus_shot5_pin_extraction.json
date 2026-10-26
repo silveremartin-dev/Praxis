@@ -1,0 +1,32 @@
+{
+  "clip_file": "09_abus_shot5_pin_extraction.mp4",
+  "source_raw_video": "09_LPL_Abus_80TI40.mp4",
+  "timing": {
+    "t_start_seconds": 142.0,
+    "t_end_seconds": 162.0,
+    "duration_seconds": 20.03,
+    "fps": 30.0,
+    "total_frames": 601
+  },
+  "action_annotation": {
+    "what_is_the_person_doing": "Pinning tweezers precision pinch: grasping brass key pins and driver springs from plug chambers into tray",
+    "action_verb": "extract",
+    "target_tool": "Curved stainless steel pinning tweezers",
+    "target_workpiece": "Miniature brass pin tumbler & steel spring (1.5mm diameter, 0.2g)",
+    "hand_engagement": "bi-manual bare hands (LH plug support, RH tweezer precision pinch)",
+    "camera_context": "static_macro"
+  },
+  "task_teleology": {
+    "is_goal_directed": true,
+    "is_state_irreversible": true,
+    "pre_condition": "Brass pin seated inside rotated cylinder plug chamber",
+    "post_condition": "Brass pin extracted with tweezers and placed into organized pinning tray slot",
+    "action_verb": "extract"
+  },
+  "physical_affordances": {},
+  "next_pipeline_stages": [
+    "src.pose_extraction.hand_mesh",
+    "src.physics_sanitizer.sdf_optimizer",
+    "src.feasibility.urdf_auditor"
+  ]
+}
