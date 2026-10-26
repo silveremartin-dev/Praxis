@@ -8,6 +8,7 @@ Provides REST and telemetry APIs for:
 5. Ingesting and slicing new videos asynchronously.
 """
 
+import asyncio
 import glob
 import json
 import os
@@ -20,9 +21,9 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -53,13 +54,86 @@ DATA_PROCESSED_DIR = os.path.join(REPO_ROOT, "data", "processed")
 ASSETS_IMAGES_DIR = os.path.join(REPO_ROOT, "assets", "images")
 DATA_RAW_DIR = os.path.join(REPO_ROOT, "data", "raw")
 
-# Mount static media directories
-if os.path.exists(DATA_CLIPS_DIR):
-    app.mount("/data/clips", StaticFiles(directory=DATA_CLIPS_DIR), name="clips")
+# Mount static directories
+if os.path.exists(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 if os.path.exists(DATA_PROCESSED_DIR):
     app.mount("/data/processed", StaticFiles(directory=DATA_PROCESSED_DIR), name="processed")
 if os.path.exists(ASSETS_IMAGES_DIR):
     app.mount("/assets/images", StaticFiles(directory=ASSETS_IMAGES_DIR), name="assets")
+
+
+@app.get("/data/clips/{filename}")
+async def stream_clip_video(filename: str, request: Request):
+    """
+    Robust HTTP byte-range video streaming endpoint.
+    Handles HTML5 media probes and client disconnects cleanly without Proactor exceptions.
+    """
+    file_path = os.path.join(DATA_CLIPS_DIR, filename)
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    file_size = os.path.getsize(file_path)
+    range_header = request.headers.get("range")
+
+    if not range_header:
+        def full_iter():
+            try:
+                with open(file_path, "rb") as f:
+                    while chunk := f.read(65536):
+                        yield chunk
+            except (ConnectionResetError, BrokenPipeError, asyncio.CancelledError):
+                return
+
+        return StreamingResponse(
+            full_iter(),
+            media_type="video/mp4",
+            headers={
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(file_size),
+                "Cache-Control": "public, max-age=86400",
+            }
+        )
+
+    try:
+        range_val = range_header.strip().replace("bytes=", "")
+        parts = range_val.split("-")
+        start = int(parts[0]) if parts[0] else 0
+        end = int(parts[1]) if len(parts) > 1 and parts[1] else file_size - 1
+        start = max(0, min(start, file_size - 1))
+        end = max(start, min(end, file_size - 1))
+        content_length = (end - start) + 1
+    except Exception:
+        start = 0
+        end = file_size - 1
+        content_length = file_size
+
+    def range_iter():
+        try:
+            with open(file_path, "rb") as f:
+                f.seek(start)
+                remaining = content_length
+                while remaining > 0:
+                    read_len = min(65536, remaining)
+                    chunk = f.read(read_len)
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+        except (ConnectionResetError, BrokenPipeError, asyncio.CancelledError):
+            return
+
+    return StreamingResponse(
+        range_iter(),
+        status_code=206,
+        media_type="video/mp4",
+        headers={
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(content_length),
+            "Cache-Control": "public, max-age=86400",
+        }
+    )
 
 extractor = VideoPoseExtractor()
 mujoco_verifier = MuJoCoVerifier()

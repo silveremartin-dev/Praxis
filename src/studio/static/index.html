@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Praxis Studio — 3D Manipulation & Physics Verifier</title>
-  <!-- Three.js + OrbitControls + OBJLoader (Optimized lightweight CDNs) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+  <!-- Three.js + OrbitControls + OBJLoader (100% Local Offline Vendor Scripts) -->
+  <script src="/static/vendor/three.min.js"></script>
+  <script src="/static/vendor/OrbitControls.js"></script>
+  <script src="/static/vendor/OBJLoader.js"></script>
   
   <style>
     /* Pure native CSS - 0ms overhead, no external CSS library, no MutationObservers */
@@ -61,15 +61,15 @@
     }
     .header-sub { font-size: 10px; color: #94a3b8; }
 
-    /* Dropdowns - Guaranteed Dark Theme */
+    /* Dropdowns - High-Contrast Dark Theme & High Readability */
     .select-wrap {
       display: flex;
       align-items: center;
       gap: 6px;
-      background-color: #0f172a;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 4px 10px;
+      background-color: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 6px;
+      padding: 3px 8px;
     }
     .select-label { font-size: 11px; font-weight: 700; color: #94a3b8; }
     select {
@@ -77,14 +77,16 @@
       color: #38bdf8 !important;
       font-size: 12px;
       font-weight: 700;
-      border: none;
+      border: 1px solid #334155;
+      border-radius: 4px;
+      padding: 4px 8px;
       outline: none;
       cursor: pointer;
     }
     #robotSelect { color: #34d399 !important; }
     option {
       background-color: #0f172a !important;
-      color: #f1f5f9 !important;
+      color: #f8fafc !important;
       padding: 6px 10px;
       font-size: 12px;
     }
@@ -434,7 +436,7 @@
       <!-- Video Player -->
       <div class="video-box">
         <div class="video-wrapper">
-          <video id="videoPlayer" playsinline controls muted preload="metadata"></video>
+          <video id="videoPlayer" playsinline controls muted preload="auto"></video>
         </div>
 
         <!-- Custom Scrubber & Play Controls -->
@@ -704,12 +706,14 @@
     // Fast In-Memory Geometry Cache
     const meshCache = {};
 
-    // Three.js
+    // Three.js & Demand-Driven Rendering
     let scene, camera, renderer, controls;
     let sceneGroup = null;
     let contactMarkersGroup = null;
     let toolMesh = null;
     let workpieceMesh = null;
+    let needsRender = true;
+    function requestRender() { needsRender = true; }
 
     // MuJoCo Simulation State
     let simTrajectoryData = null;
@@ -751,18 +755,19 @@
       // Place camera in front of the front face (Z < 0) looking at center
       camera.position.set(0, 30, -220);
 
-      // Lightweight WebGL Renderer
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+      // Ultra-Lightweight Demand-Driven WebGL Renderer (0% CPU when idle)
+      renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: "default", precision: "mediump" });
       renderer.setSize(w, h);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+      renderer.setPixelRatio(1);
       container.appendChild(renderer.domElement);
 
       controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.target.set(0, 10, 0);
       controls.enableDamping = true;
-      controls.dampingFactor = 0.08;
+      controls.dampingFactor = 0.15;
       controls.maxDistance = 500;
       controls.minDistance = 20;
+      controls.addEventListener('change', requestRender);
 
       // Fast Lambert Lights
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
@@ -788,10 +793,14 @@
       contactMarkersGroup.scale.x = -1;
       scene.add(contactMarkersGroup);
 
+      // Demand-driven rendering: renders ONLY when camera moves, video advances, or sim plays
       function animate() {
         requestAnimationFrame(animate);
-        controls.update();
-        renderer.render(scene, camera);
+        const cameraMoving = controls.update();
+        if (cameraMoving || needsRender || isSimPlaying) {
+          renderer.render(scene, camera);
+          needsRender = false;
+        }
       }
       animate();
     }
@@ -802,6 +811,7 @@
       camera.aspect = c.clientWidth / c.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(c.clientWidth, c.clientHeight);
+      requestRender();
     }
 
     // ---------------- DATA FETCHING ----------------
@@ -997,6 +1007,7 @@
       sceneGroup.add(obj);
       generateContactMarkers();
       controls.target.set(0, 0, 0);
+      requestRender();
     }
 
     function generateContactMarkers() {
@@ -1094,6 +1105,7 @@
       document.getElementById('btnCameraReset').addEventListener('click', () => {
         camera.position.set(0, 130, 240);
         controls.target.set(0, 0, 0);
+        requestRender();
       });
 
       document.getElementById('btnToggleWireframe').addEventListener('click', () => {
@@ -1101,12 +1113,14 @@
         sceneGroup.traverse(child => {
           if (child.isMesh) child.material.wireframe = isWireframe;
         });
+        requestRender();
       });
 
       document.getElementById('btnToggleContacts').addEventListener('click', (e) => {
         showContacts = !showContacts;
         contactMarkersGroup.visible = showContacts;
         e.target.textContent = showContacts ? 'Contacts [ON]' : 'Contacts [OFF]';
+        requestRender();
       });
 
       // MuJoCo Sim
@@ -1194,6 +1208,7 @@
       // Smooth kinematic attitude rotation
       if (sceneGroup && !isSimPlaying) {
         sceneGroup.rotation.y = Math.sin(progress * Math.PI) * 0.12;
+        requestRender();
       }
     }
 
