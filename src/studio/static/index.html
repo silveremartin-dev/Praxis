@@ -3,68 +3,395 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Praxis Studio — 3D Video-to-Physical Digital Twin</title>
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Three.js + OrbitControls + OBJLoader -->
+  <title>Praxis Studio — 3D Manipulation & Physics Verifier</title>
+  <!-- Three.js + OrbitControls + OBJLoader (Optimized lightweight CDNs) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: { 50: '#ecfeff', 500: '#06b6d4', 600: '#0891b2', 700: '#0e7490' },
-            neon: '#10b981',
-            robot: '#38bdf8'
-          }
-        }
-      }
-    }
-  </script>
+  
   <style>
-    body { background-color: #070b14; color: #f1f5f9; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; overflow: hidden; }
-    /* Force dropdown options to always be dark and readable across Windows, Mac, Linux */
-    select, option, optgroup {
+    /* Pure native CSS - 0ms overhead, no external CSS library, no MutationObservers */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #060913;
+      color: #f1f5f9;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    /* Top Bar */
+    header {
+      height: 52px;
+      background-color: #0b1120;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      flex-shrink: 0;
+      z-index: 20;
+    }
+    .logo-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #0891b2, #10b981);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      color: #ffffff;
+      font-size: 16px;
+    }
+    .header-title { font-weight: 800; font-size: 15px; letter-spacing: 0.5px; color: #ffffff; }
+    .header-tag {
+      font-size: 10px;
+      background-color: #083344;
+      color: #22d3ee;
+      border: 1px solid #0e7490;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      font-family: monospace;
+      font-weight: bold;
+    }
+    .header-sub { font-size: 10px; color: #94a3b8; }
+
+    /* Dropdowns - Guaranteed Dark Theme */
+    .select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background-color: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 4px 10px;
+    }
+    .select-label { font-size: 11px; font-weight: 700; color: #94a3b8; }
+    select {
       background-color: #0f172a !important;
-      color: #f8fafc !important;
-    }
-    select:focus {
+      color: #38bdf8 !important;
+      font-size: 12px;
+      font-weight: 700;
+      border: none;
       outline: none;
-      border-color: #06b6d4 !important;
+      cursor: pointer;
     }
-    .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+    #robotSelect { color: #34d399 !important; }
+    option {
+      background-color: #0f172a !important;
+      color: #f1f5f9 !important;
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+
+    /* Buttons */
+    .btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background-color 0.1s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #ffffff;
+    }
+    .btn-secondary { background-color: #1e293b; border: 1px solid #334155; color: #cbd5e1; }
+    .btn-secondary:hover { background-color: #334155; }
+    .btn-primary { background-color: #0891b2; color: #ffffff; }
+    .btn-primary:hover { background-color: #06b6d4; }
+    .btn-success { background-color: #059669; }
+    .btn-success:hover { background-color: #10b981; }
+
+    /* Main 3-column Layout */
+    main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+    .col-left {
+      width: 32%;
+      background-color: #090e1a;
+      border-right: 1px solid #1e293b;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .col-center {
+      flex: 1;
+      background-color: #050811;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .col-right {
+      width: 28%;
+      background-color: #090e1a;
+      border-left: 1px solid #1e293b;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    /* Section Header */
+    .panel-header {
+      height: 38px;
+      background-color: #0f172a;
+      border-bottom: 1px solid #1e293b;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 700;
+      color: #cbd5e1;
+      flex-shrink: 0;
+    }
+
+    /* Video Container */
+    .video-box {
+      padding: 10px;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .video-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background-color: #000000;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #1e293b;
+    }
+    video { width: 100%; height: 100%; object-fit: contain; }
+
+    /* Controls Bar */
+    .playback-bar {
+      background-color: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .time-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: monospace;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    input[type=range] {
+      width: 100%;
+      height: 5px;
+      accent-color: #06b6d4;
+      cursor: pointer;
+    }
+    .btn-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 2px;
+    }
+
+    /* Task Graph Phases */
+    .phases-wrap {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .phase-card {
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #1e293b;
+      background-color: #0f172a;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      transition: background-color 0.1s, border-color 0.1s;
+    }
+    .phase-card:hover { border-color: #0891b2; }
+    .phase-card.active {
+      background-color: #083344;
+      border-color: #06b6d4;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+    }
+    .phase-name { font-weight: 700; color: #f1f5f9; }
+    .phase-time { font-family: monospace; font-size: 10px; color: #38bdf8; font-weight: 600; }
+
+    /* Metadata Bar */
+    .meta-bar {
+      padding: 8px 12px;
+      background-color: #0a0f1d;
+      border-top: 1px solid #1e293b;
+      font-size: 11px;
+      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .meta-row { display: flex; justify-content: space-between; color: #94a3b8; }
+    .meta-val { color: #f1f5f9; font-weight: 700; }
+
+    /* 3D WebGL Canvas */
+    #webglContainer { width: 100%; height: 100%; cursor: grab; position: relative; }
+    #webglContainer:active { cursor: grabbing; }
+
+    .canvas-hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none;
+      z-index: 10;
+    }
+    .hud-chip {
+      background-color: rgba(15, 23, 42, 0.9);
+      border: 1px solid #334155;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-family: monospace;
+      color: #e2e8f0;
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .canvas-tools {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 5px;
+      z-index: 10;
+    }
+
+    /* MuJoCo Physics Ribbon */
+    #physicsSimOverlay {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(15, 23, 42, 0.95);
+      border: 1px solid #06b6d4;
+      border-radius: 10px;
+      padding: 8px 16px;
+      display: none;
+      align-items: center;
+      gap: 12px;
+      z-index: 10;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+      font-family: monospace;
+      font-size: 11px;
+    }
+
+    /* Right Tabs */
+    .tabs-header {
+      height: 38px;
+      background-color: #0f172a;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .tab-btn.active { color: #22d3ee; border-bottom-color: #22d3ee; }
+    .tab-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .card {
+      background-color: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .card-title { font-size: 11px; font-weight: 800; color: #ffffff; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
+    .card-desc { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.75);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    .modal-box {
+      width: 440px;
+      background-color: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Custom Scroll */
+    .custom-scroll::-webkit-scrollbar { width: 5px; }
     .custom-scroll::-webkit-scrollbar-track { background: #070b14; }
     .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
-    .custom-scroll::-webkit-scrollbar-thumb:hover { background: #334155; }
-    .panel-bg { background-color: #0b1120; border: 1px solid #1e293b; }
   </style>
 </head>
-<body class="h-screen w-screen flex flex-col select-none">
+<body>
 
-  <!-- ================= TOP HEADER ================= -->
-  <header class="h-14 border-b border-slate-800 bg-slate-950 px-4 flex items-center justify-between z-20 shrink-0">
-    <div class="flex items-center space-x-3">
-      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-600 to-emerald-400 flex items-center justify-center font-bold text-white shadow-md shadow-cyan-950">
-        P
-      </div>
+  <!-- ================= HEADER ================= -->
+  <header>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div class="logo-badge">P</div>
       <div>
-        <div class="flex items-center space-x-2">
-          <span class="font-black tracking-wide text-white text-base">PRAXIS STUDIO</span>
-          <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800 font-mono font-semibold">PHYSICS 3D</span>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <span class="header-title">PRAXIS STUDIO</span>
+          <span class="header-tag">HIGH-SPEED 3D</span>
         </div>
-        <p class="text-[10px] text-slate-400">Video-to-Physical Digital Twin for Humanoid Robotics</p>
+        <div class="header-sub">Video-to-Physical Digital Twin for Humanoids</div>
       </div>
     </div>
 
-    <!-- Dropdowns: Clips & Embodiment -->
-    <div class="flex items-center space-x-3">
-      <!-- Clip Selector -->
-      <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1 shadow-sm">
-        <label for="clipSelect" class="text-xs font-semibold text-slate-400">Clip:</label>
-        <select id="clipSelect" class="bg-slate-900 text-cyan-300 text-xs font-bold py-0.5 focus:outline-none cursor-pointer">
+    <!-- Dropdowns -->
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div class="select-wrap">
+        <label for="clipSelect" class="select-label">Clip:</label>
+        <select id="clipSelect">
           <option value="07_lpl_masterlock">07 | Master Lock No. 3 (Bimanual Bypass)</option>
           <option value="01_lpl_dropkey">01 | Drop Key (Precision Stem Pinch)</option>
           <option value="05_watch_zodiac">05 | Zodiac Watch (Micro-Gear Extraction)</option>
@@ -72,10 +399,9 @@
         </select>
       </div>
 
-      <!-- Embodiment Retargeting Selector -->
-      <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1 shadow-sm">
-        <label for="robotSelect" class="text-xs font-semibold text-slate-400">Embodiment:</label>
-        <select id="robotSelect" class="bg-slate-900 text-emerald-400 text-xs font-bold py-0.5 focus:outline-none cursor-pointer">
+      <div class="select-wrap">
+        <label for="robotSelect" class="select-label">Embodiment:</label>
+        <select id="robotSelect">
           <option value="human">Human Biological Hand (27 DoF)</option>
           <option value="unitree_h1">Unitree H1 (Inspire DexHand 6 DoF)</option>
           <option value="tesla_optimus">Tesla Optimus (Optimus Hand Gen-2 11 DoF)</option>
@@ -85,418 +411,307 @@
       </div>
     </div>
 
-    <!-- Header Actions -->
-    <div class="flex items-center space-x-2">
-      <button id="btnOpenIngestModal" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition">
-        + Slice Video
-      </button>
-      <button id="btnRunQuickSim" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white shadow-md shadow-emerald-950 flex items-center space-x-1.5 transition">
-        <span class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
+    <!-- Actions -->
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <button id="btnOpenIngestModal" class="btn btn-secondary">+ Slice Video</button>
+      <button id="btnRunQuickSim" class="btn btn-success">
+        <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#86efac;"></span>
         <span>Run MuJoCo Sim</span>
       </button>
     </div>
   </header>
 
-  <!-- ================= MAIN 3-PANEL LAYOUT ================= -->
-  <main class="flex-1 flex overflow-hidden">
+  <!-- ================= WORKSPACE ================= -->
+  <main>
     
-    <!-- LEFT PANEL: Video Player & Task Graph (32%) -->
-    <section class="w-[32%] border-r border-slate-800 flex flex-col bg-slate-950/95 z-10">
-      
-      <!-- Panel Header -->
-      <div class="h-9 px-3 border-b border-slate-800 bg-slate-900/70 flex items-center justify-between text-xs font-bold text-slate-300">
-        <span class="flex items-center space-x-2">
-          <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
-          <span>Source Demonstration Video</span>
-        </span>
-        <span id="videoCodecBadge" class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 font-mono">H.264 Ready</span>
+    <!-- LEFT PANEL: Video & Phases -->
+    <section class="col-left">
+      <div class="panel-header">
+        <span>Demonstration Video</span>
+        <span id="videoCodecBadge" style="color: #38bdf8; font-family: monospace;">H.264 30fps</span>
       </div>
 
-      <!-- HTML5 Video Player Container -->
-      <div class="p-3 flex flex-col space-y-2 border-b border-slate-800/80">
-        <div class="relative aspect-video bg-black rounded-lg overflow-hidden border border-slate-800 shadow-inner flex items-center justify-center">
-          <video 
-            id="videoPlayer" 
-            class="w-full h-full object-contain" 
-            playsinline 
-            controls 
-            muted 
-            preload="metadata">
-          </video>
-          <div id="videoErrorMessage" class="hidden absolute inset-0 bg-black/90 p-4 flex flex-col items-center justify-center text-center">
-            <span class="text-rose-400 text-xs font-bold mb-1">Video could not be loaded</span>
-            <button id="btnReloadVideo" class="px-2.5 py-1 rounded bg-slate-800 text-slate-200 text-[11px] hover:bg-slate-700">Reload</button>
-          </div>
+      <!-- Video Player -->
+      <div class="video-box">
+        <div class="video-wrapper">
+          <video id="videoPlayer" playsinline controls muted preload="metadata"></video>
         </div>
 
-        <!-- Synchronized Timeline Scrubber -->
-        <div class="flex flex-col space-y-1 bg-slate-900/90 p-2.5 rounded-lg border border-slate-800">
-          <div class="flex items-center justify-between text-xs font-mono text-slate-400">
+        <!-- Custom Scrubber & Play Controls -->
+        <div class="playback-bar">
+          <div class="time-row">
             <span id="timeCurrent">00:00.00</span>
-            <span id="phaseBadge" class="px-2 py-0.5 rounded text-[10px] bg-cyan-950 text-cyan-300 border border-cyan-800 font-semibold">Phase 1</span>
+            <span id="phaseBadge" style="background:#083344; color:#38bdf8; padding:2px 6px; border-radius:4px; font-weight:700;">Phase 1</span>
             <span id="timeDuration">00:10.00</span>
           </div>
-          <input type="range" id="timeScrubber" min="0" max="10" step="0.01" value="0" class="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg">
-          
-          <!-- Playback Controls -->
-          <div class="flex items-center justify-between pt-1 text-xs">
-            <div class="flex items-center space-x-1.5">
-              <button id="btnPrevFrame" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-[10px]" title="Step -1 Frame">
-                -1f
-              </button>
-              <button id="btnPlayPause" class="px-3 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow flex items-center space-x-1">
+          <input type="range" id="timeScrubber" min="0" max="10" step="0.01" value="0">
+          <div class="btn-row">
+            <div style="display: flex; gap: 4px;">
+              <button id="btnPrevFrame" class="btn btn-secondary" style="padding: 3px 8px; font-size: 10px;">-1f</button>
+              <button id="btnPlayPause" class="btn btn-primary" style="padding: 3px 12px; font-size: 11px;">
                 <span id="playIcon">Play</span>
               </button>
-              <button id="btnNextFrame" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-mono text-[10px]" title="Step +1 Frame">
-                +1f
-              </button>
+              <button id="btnNextFrame" class="btn btn-secondary" style="padding: 3px 8px; font-size: 10px;">+1f</button>
             </div>
-
-            <!-- Volume / Mute toggle -->
-            <button id="btnToggleMute" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px]">
-              Muted 🔇
-            </button>
+            <button id="btnToggleMute" class="btn btn-secondary" style="padding: 3px 8px; font-size: 10px;">Muted 🔇</button>
           </div>
         </div>
       </div>
 
-      <!-- Manipulation Phases Breakdown (Continuous Task Graph) -->
-      <div class="flex-1 overflow-y-auto custom-scroll p-3 flex flex-col space-y-2">
-        <div class="flex items-center justify-between pb-1 border-b border-slate-800">
-          <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Semantic Task Graph</h3>
-          <span class="text-[10px] text-slate-500 font-mono">Click phase to jump</span>
+      <!-- Phases Breakdown -->
+      <div class="phases-wrap custom-scroll">
+        <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
+          Semantic Task Graph (Click to Seek)
         </div>
-        <div id="phasesList" class="flex flex-col space-y-1.5">
-          <!-- Dynamically populated -->
-        </div>
+        <div id="phasesList" style="display: flex; flex-direction: column; gap: 5px;"></div>
       </div>
 
-      <!-- Bottom Clip Specs -->
-      <div class="p-2.5 border-t border-slate-800 bg-slate-900/70 text-xs font-mono">
-        <div class="flex justify-between text-slate-400 text-[11px] mb-1">
-          <span>Workpiece:</span>
-          <span id="lblWorkpiece" class="text-slate-200 font-bold truncate ml-2">Master Lock No. 3</span>
-        </div>
-        <div class="flex justify-between text-slate-400 text-[11px] mb-1">
-          <span>Tool:</span>
-          <span id="lblTool" class="text-slate-200 font-bold truncate ml-2">Bypass Needle (0.5mm)</span>
-        </div>
-        <div class="flex justify-between text-slate-400 text-[11px]">
-          <span>Penetration:</span>
-          <span class="text-emerald-400 font-bold">0.00 mm (Certified)</span>
-        </div>
+      <!-- Bottom Metadata -->
+      <div class="meta-bar">
+        <div class="meta-row"><span>Workpiece:</span><span id="lblWorkpiece" class="meta-val">Master Lock No. 3</span></div>
+        <div class="meta-row"><span>Tool:</span><span id="lblTool" class="meta-val">Bypass Needle (0.5mm)</span></div>
+        <div class="meta-row"><span>Penetration:</span><span style="color:#34d399; font-weight:bold;">0.00 mm (Certified)</span></div>
       </div>
     </section>
 
-
-    <!-- CENTER PANEL: Interactive 3D WebGL Digital Twin (43%) -->
-    <section class="flex-1 relative flex flex-col bg-slate-950 overflow-hidden">
-      
-      <!-- 3D Canvas Viewport -->
-      <div id="webglContainer" class="flex-1 w-full h-full relative cursor-grab active:cursor-grabbing">
-        
-        <!-- Viewport Floating HUD (Top Left) -->
-        <div class="absolute top-3 left-3 z-10 flex flex-col space-y-1.5 pointer-events-none">
-          <div class="panel-bg px-3 py-1.5 rounded-lg flex items-center space-x-2 shadow-lg pointer-events-auto">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span class="text-xs font-mono font-bold text-slate-200">3D Digital Twin Contact Manifold</span>
+    <!-- CENTER PANEL: 3D Canvas -->
+    <section class="col-center">
+      <div id="webglContainer">
+        <!-- Floating HUD -->
+        <div class="canvas-hud">
+          <div class="hud-chip">
+            <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#10b981;"></span>
+            <span>3D Collision-Free Manifold</span>
           </div>
-
-          <div class="panel-bg px-2.5 py-1 rounded text-[11px] text-slate-300 font-mono flex items-center space-x-2.5 shadow pointer-events-auto">
-            <span>SDF Collision: <strong class="text-emerald-400 font-bold">0.00 mm</strong></span>
-            <span>•</span>
-            <span>Physics: <strong class="text-cyan-400" id="hudPhysicsStatus">Equilibrium</strong></span>
+          <div class="hud-chip">
+            <span>SDF: <strong style="color:#34d399;">0.00 mm</strong></span>
+            <span>|</span>
+            <span>Physics: <strong id="hudPhysicsStatus" style="color:#38bdf8;">Equilibrium</strong></span>
           </div>
         </div>
 
-        <!-- 3D Viewport Controls (Top Right) -->
-        <div class="absolute top-3 right-3 z-10 flex items-center space-x-1.5 panel-bg p-1 rounded-lg shadow-lg pointer-events-auto">
-          <button id="btnCameraReset" class="px-2 py-1 text-[11px] rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition">
-            Reset Cam
-          </button>
-          <button id="btnToggleWireframe" class="px-2 py-1 text-[11px] rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium transition">
-            Wireframe
-          </button>
-          <button id="btnToggleContacts" class="px-2 py-1 text-[11px] rounded bg-emerald-950 border border-emerald-800 text-emerald-300 font-medium transition">
-            Contacts [ON]
-          </button>
+        <!-- 3D Tools -->
+        <div class="canvas-tools">
+          <button id="btnCameraReset" class="btn btn-secondary" style="padding:4px 8px; font-size:10px;">Reset Cam</button>
+          <button id="btnToggleWireframe" class="btn btn-secondary" style="padding:4px 8px; font-size:10px;">Wireframe</button>
+          <button id="btnToggleContacts" class="btn btn-secondary" style="padding:4px 8px; font-size:10px; color:#34d399;">Contacts [ON]</button>
         </div>
 
-        <!-- MuJoCo 3D Physics Animation Ribbon (Active during sim playback) -->
-        <div id="physicsSimOverlay" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 z-10 panel-bg px-4 py-2 rounded-xl shadow-2xl border border-cyan-500/50 flex items-center space-x-4 pointer-events-auto">
-          <div class="flex items-center space-x-2">
-            <span class="w-3 h-3 rounded-full bg-cyan-400 animate-ping"></span>
-            <span class="text-xs font-bold text-cyan-300 font-mono">MuJoCo 3D Forward Dynamics</span>
+        <!-- MuJoCo 3D Physics Ribbon -->
+        <div id="physicsSimOverlay">
+          <span style="color:#22d3ee; font-weight:bold;">MuJoCo 3D Forward Dynamics</span>
+          <span>Frame: <strong id="simFrameIndex" style="color:#fff;">0</strong> / <span id="simFrameTotal">30</span></span>
+          <div style="display: flex; gap: 4px;">
+            <button id="btnPauseSimPlayback" class="btn btn-secondary" style="padding:2px 8px; font-size:10px;">Pause</button>
+            <button id="btnReplaySim" class="btn btn-primary" style="padding:2px 8px; font-size:10px;">Replay</button>
+            <button id="btnCloseSimOverlay" class="btn btn-secondary" style="padding:2px 6px; font-size:10px;">&times;</button>
           </div>
-          <div class="text-xs font-mono text-slate-300">
-            Frame: <span id="simFrameIndex" class="text-white font-bold">0</span> / <span id="simFrameTotal" class="text-slate-400">30</span>
-          </div>
-          <div class="flex items-center space-x-2">
-            <button id="btnPauseSimPlayback" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-[11px] text-white">Pause</button>
-            <button id="btnReplaySim" class="px-2.5 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-[11px] text-white font-bold">Replay</button>
-            <button id="btnCloseSimOverlay" class="px-2 py-1 text-slate-400 hover:text-white text-xs">&times;</button>
-          </div>
-        </div>
-
-        <!-- Loading Overlay -->
-        <div id="loader3D" class="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center space-y-3 z-20 transition-opacity duration-200">
-          <div class="w-9 h-9 border-3 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
-          <span class="text-xs font-mono text-cyan-300 tracking-wider">LOADING DIGITAL TWIN 3D MESH...</span>
         </div>
       </div>
 
-      <!-- Bottom Viewport Status Bar -->
-      <div class="h-8 border-t border-slate-800 bg-slate-900/80 px-3 flex items-center justify-between text-[11px] text-slate-400 font-mono">
-        <div class="flex items-center space-x-3">
-          <span>Embodiment: <span id="statusBarEmbodiment" class="text-emerald-400 font-bold">Human Biological (27 DoF)</span></span>
-          <span>•</span>
-          <span>Target: <span id="statusBarWorkpiece" class="text-slate-200 font-medium">Master Lock No. 3</span></span>
-        </div>
-        <div class="flex items-center space-x-2 text-emerald-400 font-semibold">
-          <span>Zero Penetration Certified (SDF &ge; 0.0 mm)</span>
-        </div>
+      <!-- Bottom Status -->
+      <div style="height: 28px; background-color: #0b1120; border-top: 1px solid #1e293b; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; font-size: 10px; font-family: monospace; color: #94a3b8;">
+        <div>Embodiment: <strong id="statusBarEmbodiment" style="color:#34d399;">Human Biological (27 DoF)</strong></div>
+        <div style="color: #34d399; font-weight: bold;">L_SDF &ge; 0 Enforced (Zero Interpenetration)</div>
       </div>
     </section>
 
-
-    <!-- RIGHT PANEL: MuJoCo Physics, Robot Hardware Specs & Dataset (25%) -->
-    <section class="w-[28%] border-l border-slate-800 flex flex-col bg-slate-950/95 z-10">
-      
-      <!-- Right Tabs Header -->
-      <div class="flex border-b border-slate-800 bg-slate-900/70 text-xs font-bold shrink-0">
-        <button id="tabSimBtn" class="flex-1 py-2.5 text-cyan-400 border-b-2 border-cyan-400 text-center">
-          MuJoCo Sim
-        </button>
-        <button id="tabRobotsBtn" class="flex-1 py-2.5 text-slate-400 hover:text-slate-200 text-center">
-          Robot Specs
-        </button>
-        <button id="tabDatasetBtn" class="flex-1 py-2.5 text-slate-400 hover:text-slate-200 text-center">
-          LeRobot
-        </button>
+    <!-- RIGHT PANEL: MuJoCo, Specs, LeRobot -->
+    <section class="col-right">
+      <div class="tabs-header">
+        <button id="tabSimBtn" class="tab-btn active">MuJoCo Sim</button>
+        <button id="tabRobotsBtn" class="tab-btn">Robot Specs</button>
+        <button id="tabDatasetBtn" class="tab-btn">LeRobot</button>
       </div>
 
-      <div class="flex-1 overflow-y-auto custom-scroll p-3 flex flex-col space-y-3.5">
-        
-        <!-- ================= TAB 1: MUJOCO SIMULATOR ================= -->
-        <div id="panelSim" class="flex flex-col space-y-3">
-          <div class="panel-bg p-3 rounded-lg">
-            <div class="flex items-center justify-between mb-1.5">
-              <h4 class="text-xs font-bold text-white uppercase tracking-wide">MuJoCo 3D Forward Dynamics</h4>
-              <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono">Native C API</span>
-            </div>
-            <p class="text-[11px] text-slate-400 mb-3 leading-relaxed">
-              Computes Newton-Euler forward dynamics equations under gravity to prove that hand contacts and workpiece release produce physical equilibrium without velocity explosions.
-            </p>
-
-            <!-- Sim controls -->
-            <div class="space-y-2 mb-3">
-              <div>
-                <div class="flex justify-between text-[11px] text-slate-400 mb-1">
-                  <span>Simulation Duration:</span>
-                  <span id="lblSimDuration" class="text-cyan-400 font-mono font-bold">0.60 s</span>
-                </div>
-                <input type="range" id="simDurationSlider" min="0.2" max="2.0" step="0.1" value="0.6" class="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg">
-              </div>
-
-              <div>
-                <div class="flex justify-between text-[11px] text-slate-400 mb-1">
-                  <span>Disturbance Impulse:</span>
-                  <span id="lblSimImpulse" class="text-cyan-400 font-mono font-bold">0.0 N</span>
-                </div>
-                <input type="range" id="simImpulseSlider" min="0" max="5.0" step="0.5" value="0" class="w-full accent-cyan-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg">
-              </div>
-            </div>
-
-            <button id="btnExecuteSim" class="w-full py-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-black text-xs shadow-lg shadow-emerald-950 transition flex items-center justify-center space-x-2">
-              <span id="simBtnSpinner" class="hidden w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              <span>Execute 3D MuJoCo Physics Stepping</span>
-            </button>
+      <!-- Tab 1: MuJoCo -->
+      <div id="panelSim" class="tab-panel custom-scroll">
+        <div class="card">
+          <div class="card-title">
+            <span>MuJoCo Forward Dynamics</span>
+            <span style="font-size:9px; background:#064e3b; color:#34d399; padding:2px 6px; border-radius:4px; font-family:monospace;">MuJoCo 3.x</span>
+          </div>
+          <div class="card-desc">
+            Executes native forward dynamic stepping under gravity and contact friction to certify that the demonstration achieves physical equilibrium without velocity blowup.
           </div>
 
-          <!-- Dynamic Telemetry Card -->
-          <div id="simResultsCard" class="panel-bg p-3 rounded-lg">
-            <h5 class="text-[11px] font-bold text-slate-300 uppercase mb-2">Mechanical Telemetry</h5>
-            <div class="space-y-1.5 font-mono text-[11px]">
-              <div class="flex justify-between p-1.5 bg-slate-900 rounded">
-                <span class="text-slate-400">Dynamic Status:</span>
-                <span id="telemetryStatus" class="text-emerald-400 font-bold">PASS: Certified Stable</span>
+          <div style="display: flex; flex-direction: column; gap: 8px; margin: 4px 0;">
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:10px; font-family:monospace; color:#94a3b8; margin-bottom:2px;">
+                <span>Duration:</span><span id="lblSimDuration" style="color:#38bdf8; font-weight:bold;">0.60 s</span>
               </div>
-              <div class="flex justify-between p-1.5 bg-slate-900 rounded">
-                <span class="text-slate-400">Peak Velocity:</span>
-                <span id="telemetryVel" class="text-cyan-300 font-bold">0.000 m/s</span>
+              <input type="range" id="simDurationSlider" min="0.2" max="2.0" step="0.1" value="0.6">
+            </div>
+
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:10px; font-family:monospace; color:#94a3b8; margin-bottom:2px;">
+                <span>Impulse Disturbance:</span><span id="lblSimImpulse" style="color:#38bdf8; font-weight:bold;">0.0 N</span>
               </div>
-              <div class="flex justify-between p-1.5 bg-slate-900 rounded">
-                <span class="text-slate-400">Max Penetration:</span>
-                <span id="telemetryPen" class="text-emerald-400 font-bold">0.00 mm</span>
-              </div>
-              <div class="flex justify-between p-1.5 bg-slate-900 rounded">
-                <span class="text-slate-400">Explosion Checks:</span>
-                <span id="telemetryExplosion" class="text-emerald-400 font-bold">0 (Stable)</span>
-              </div>
-              <div class="flex justify-between p-1.5 bg-slate-900 rounded">
-                <span class="text-slate-400">Timestep dt:</span>
-                <span class="text-slate-300">0.002 s (500 Hz)</span>
-              </div>
+              <input type="range" id="simImpulseSlider" min="0" max="5.0" step="0.5" value="0">
+            </div>
+          </div>
+
+          <button id="btnExecuteSim" class="btn btn-success" style="width: 100%; justify-content: center; padding: 8px;">
+            Execute 3D MuJoCo Physics Stepping
+          </button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Dynamic Telemetry</div>
+          <div style="display:flex; flex-direction:column; gap:4px; font-family:monospace; font-size:11px;">
+            <div style="display:flex; justify-content:space-between; padding:4px 6px; background:#070b14; border-radius:4px;">
+              <span style="color:#94a3b8;">Status:</span><span id="telemetryStatus" style="color:#34d399; font-weight:bold;">PASS: Stable</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:4px 6px; background:#070b14; border-radius:4px;">
+              <span style="color:#94a3b8;">Max Velocity:</span><span id="telemetryVel" style="color:#38bdf8; font-weight:bold;">0.000 m/s</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:4px 6px; background:#070b14; border-radius:4px;">
+              <span style="color:#94a3b8;">Penetration:</span><span id="telemetryPen" style="color:#34d399; font-weight:bold;">0.00 mm</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; padding:4px 6px; background:#070b14; border-radius:4px;">
+              <span style="color:#94a3b8;">Explosion Check:</span><span id="telemetryExplosion" style="color:#34d399; font-weight:bold;">0 (Stable)</span>
             </div>
           </div>
         </div>
+      </div>
 
+      <!-- Tab 2: Robots -->
+      <div id="panelRobots" class="tab-panel custom-scroll" style="display:none;">
+        <div class="card">
+          <div class="card-title">
+            <span id="robotNameTitle" style="color:#34d399;">Unitree H1</span>
+            <span id="robotDofBadge" style="font-size:9px; background:#064e3b; color:#34d399; padding:2px 6px; border-radius:4px; font-family:monospace;">6 DoF</span>
+          </div>
+          <div id="robotDescription" class="card-desc">
+            Inspire-Robots Dexterous Hand for Unitree H1 humanoid.
+          </div>
 
-        <!-- ================= TAB 2: ROBOT SPECS ================= -->
-        <div id="panelRobots" class="hidden flex flex-col space-y-3">
-          <div class="panel-bg p-3 rounded-lg">
-            <div class="flex items-center justify-between mb-2">
-              <h4 id="robotNameTitle" class="text-xs font-bold text-emerald-400 uppercase">Unitree H1</h4>
-              <span id="robotDofBadge" class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono font-bold">6 Active DoF</span>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-family:monospace; font-size:10px;">
+            <div style="background:#070b14; padding:6px; border-radius:4px;">
+              <div style="color:#64748b;">PINCH FORCE</div>
+              <div id="robotPinchVal" style="color:#38bdf8; font-weight:bold;">10.0 N</div>
             </div>
-            <p id="robotDescription" class="text-[11px] text-slate-300 mb-3 leading-relaxed">
-              Inspire-Robots Dexterous Hand for Unitree H1 humanoid. 6 active DoF with 12 total joints.
-            </p>
-
-            <!-- Hardware Grid -->
-            <div class="grid grid-cols-2 gap-2 text-[11px] font-mono mb-3">
-              <div class="p-2 bg-slate-900 rounded border border-slate-800">
-                <div class="text-[10px] text-slate-500 uppercase">Pinch Force</div>
-                <div id="robotPinchVal" class="text-cyan-300 font-bold">10.0 N</div>
-              </div>
-              <div class="p-2 bg-slate-900 rounded border border-slate-800">
-                <div class="text-[10px] text-slate-500 uppercase">Grasp Payload</div>
-                <div id="robotPayloadVal" class="text-cyan-300 font-bold">3.0 kg</div>
-              </div>
-              <div class="p-2 bg-slate-900 rounded border border-slate-800">
-                <div class="text-[10px] text-slate-500 uppercase">Hand Weight</div>
-                <div id="robotWeightVal" class="text-slate-300 font-bold">580 g</div>
-              </div>
-              <div class="p-2 bg-slate-900 rounded border border-slate-800">
-                <div class="text-[10px] text-slate-500 uppercase">Palm Dimensions</div>
-                <div id="robotPalmVal" class="text-slate-300 font-bold">85x92 mm</div>
-              </div>
+            <div style="background:#070b14; padding:6px; border-radius:4px;">
+              <div style="color:#64748b;">PAYLOAD</div>
+              <div id="robotPayloadVal" style="color:#38bdf8; font-weight:bold;">3.0 kg</div>
             </div>
-
-            <!-- Finger Kinematic Chains -->
-            <div class="border-t border-slate-800 pt-2">
-              <div class="text-[11px] font-bold text-slate-300 mb-1.5">Articulated Finger Actuation:</div>
-              <div id="robotFingersList" class="space-y-1 text-[10px] font-mono text-slate-300">
-                <!-- Dynamically populated -->
-              </div>
+            <div style="background:#070b14; padding:6px; border-radius:4px;">
+              <div style="color:#64748b;">WEIGHT</div>
+              <div id="robotWeightVal" style="color:#f1f5f9; font-weight:bold;">580 g</div>
+            </div>
+            <div style="background:#070b14; padding:6px; border-radius:4px;">
+              <div style="color:#64748b;">PALM</div>
+              <div id="robotPalmVal" style="color:#f1f5f9; font-weight:bold;">85x92 mm</div>
             </div>
           </div>
-        </div>
 
-
-        <!-- ================= TAB 3: LEROBOT DATASET EXPORT ================= -->
-        <div id="panelDataset" class="hidden flex flex-col space-y-3">
-          <div class="panel-bg p-3 rounded-lg">
-            <h4 class="text-xs font-bold text-white uppercase tracking-wide mb-1.5 flex items-center justify-between">
-              <span>Hugging Face LeRobot Format</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-800 font-mono">Parquet</span>
-            </h4>
-            <p class="text-[11px] text-slate-400 mb-3 leading-relaxed">
-              Standardized demonstration episodes formatted for foundation policy imitation training (ACT / Diffusion Policy).
-            </p>
-
-            <div class="space-y-2 text-[11px] font-mono mb-3">
-              <div class="p-2 bg-slate-900 rounded border border-slate-800">
-                <div class="text-[10px] text-slate-500 uppercase">Dataset Parquet:</div>
-                <a id="linkParquet" href="#" target="_blank" class="text-cyan-400 hover:underline break-all">metadata.parquet</a>
-              </div>
-              <div class="p-2 bg-slate-900 rounded border border-slate-800">
-                <div class="text-[10px] text-slate-500 uppercase">Collision Mesh OBJ:</div>
-                <a id="linkObj" href="#" target="_blank" class="text-cyan-400 hover:underline break-all">scene_3d.obj</a>
-              </div>
-              <div class="p-2 bg-slate-900 rounded border border-slate-800">
-                <div class="text-[10px] text-slate-500 uppercase">Physics MuJoCo XML:</div>
-                <a id="linkXml" href="#" target="_blank" class="text-cyan-400 hover:underline break-all">scene.xml</a>
-              </div>
-            </div>
-
-            <a id="btnDownloadParquet" href="#" download class="w-full py-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs shadow-md shadow-cyan-950 transition flex items-center justify-center space-x-1.5 text-center">
-              <span>Download LeRobot Parquet Table</span>
-            </a>
+          <div style="border-top:1px solid #1e293b; padding-top:6px;">
+            <div style="font-size:10px; font-weight:700; color:#94a3b8; margin-bottom:4px;">Fingers Actuation:</div>
+            <div id="robotFingersList" style="display:flex; flex-direction:column; gap:2px; font-family:monospace; font-size:10px; color:#cbd5e1;"></div>
           </div>
         </div>
+      </div>
 
+      <!-- Tab 3: Dataset -->
+      <div id="panelDataset" class="tab-panel custom-scroll" style="display:none;">
+        <div class="card">
+          <div class="card-title">Hugging Face LeRobot</div>
+          <div class="card-desc">Standardized demonstration format for foundation imitation training.</div>
+          <div style="display:flex; flex-direction:column; gap:4px; font-family:monospace; font-size:10px;">
+            <div style="background:#070b14; padding:6px; border-radius:4px;">
+              <div style="color:#64748b;">PARQUET TABLE:</div>
+              <a id="linkParquet" href="#" target="_blank" style="color:#38bdf8; word-break:break-all;">metadata.parquet</a>
+            </div>
+            <div style="background:#070b14; padding:6px; border-radius:4px;">
+              <div style="color:#64748b;">COLLISION OBJ:</div>
+              <a id="linkObj" href="#" target="_blank" style="color:#38bdf8; word-break:break-all;">scene_3d.obj</a>
+            </div>
+            <div style="background:#070b14; padding:6px; border-radius:4px;">
+              <div style="color:#64748b;">MUJOCO XML:</div>
+              <a id="linkXml" href="#" target="_blank" style="color:#38bdf8; word-break:break-all;">scene.xml</a>
+            </div>
+          </div>
+          <a id="btnDownloadParquet" href="#" download class="btn btn-primary" style="justify-content:center; text-decoration:none;">
+            Download Parquet Table
+          </a>
+        </div>
       </div>
     </section>
   </main>
 
-  <!-- ================= MODAL: INGEST & SLICE NEW VIDEO ================= -->
-  <div id="ingestModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="panel-bg w-full max-w-md p-5 rounded-xl border border-slate-700 shadow-2xl flex flex-col space-y-4">
-      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-        <h3 class="text-sm font-bold text-white flex items-center space-x-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
-          <span>Slice Continuous Manipulation Clip</span>
-        </h3>
-        <button id="btnCloseModal" class="text-slate-400 hover:text-white text-lg font-bold">&times;</button>
+  <!-- ================= MODAL INGEST ================= -->
+  <div id="ingestModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:8px;">
+        <span style="font-size:13px; font-weight:700;">Slice Continuous Manipulation Video</span>
+        <button id="btnCloseModal" style="background:none; border:none; color:#94a3b8; font-size:16px; cursor:pointer;">&times;</button>
       </div>
 
-      <form id="ingestForm" class="space-y-3 text-xs">
+      <form id="ingestForm" style="display:flex; flex-direction:column; gap:8px; font-size:11px;">
         <div>
-          <label class="block text-slate-300 font-semibold mb-1">Source Video File (Path or in data/raw/):</label>
-          <input type="text" id="ingestVideoPath" value="data/raw/LPL_MasterLock_No3.mp4" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-cyan-300 focus:outline-none focus:border-cyan-500 font-mono">
+          <label style="color:#94a3b8; font-weight:600; display:block; margin-bottom:2px;">Video File Path:</label>
+          <input type="text" id="ingestVideoPath" value="data/raw/LPL_MasterLock_No3.mp4" style="width:100%; background:#070b14; border:1px solid #334155; border-radius:4px; padding:4px 8px; color:#38bdf8; font-family:monospace;">
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Start Time (sec):</label>
-            <input type="number" id="ingestTStart" step="0.1" value="40.0" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white font-mono">
+        <div style="display:flex; gap:8px;">
+          <div style="flex:1;">
+            <label style="color:#94a3b8; font-weight:600; display:block; margin-bottom:2px;">Start Time (s):</label>
+            <input type="number" id="ingestTStart" step="0.1" value="40.0" style="width:100%; background:#070b14; border:1px solid #334155; border-radius:4px; padding:4px 8px; color:#fff; font-family:monospace;">
           </div>
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">End Time (sec):</label>
-            <input type="number" id="ingestTEnd" step="0.1" value="50.0" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-white font-mono">
+          <div style="flex:1;">
+            <label style="color:#94a3b8; font-weight:600; display:block; margin-bottom:2px;">End Time (s):</label>
+            <input type="number" id="ingestTEnd" step="0.1" value="50.0" style="width:100%; background:#070b14; border:1px solid #334155; border-radius:4px; padding:4px 8px; color:#fff; font-family:monospace;">
           </div>
         </div>
 
         <div>
-          <label class="block text-slate-300 font-semibold mb-1">Action Description:</label>
-          <input type="text" id="ingestDesc" value="Bimanual bypass insertion and latch release" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200">
+          <label style="color:#94a3b8; font-weight:600; display:block; margin-bottom:2px;">Description:</label>
+          <input type="text" id="ingestDesc" value="Bimanual bypass insertion and latch release" style="width:100%; background:#070b14; border:1px solid #334155; border-radius:4px; padding:4px 8px; color:#fff;">
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Workpiece:</label>
-            <input type="text" id="ingestWorkpiece" value="Master Lock No. 3" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200">
+        <div style="display:flex; gap:8px;">
+          <div style="flex:1;">
+            <label style="color:#94a3b8; font-weight:600; display:block; margin-bottom:2px;">Workpiece:</label>
+            <input type="text" id="ingestWorkpiece" value="Master Lock No. 3" style="width:100%; background:#070b14; border:1px solid #334155; border-radius:4px; padding:4px 8px; color:#fff;">
           </div>
-          <div>
-            <label class="block text-slate-300 font-semibold mb-1">Tool:</label>
-            <input type="text" id="ingestTool" value="Bypass needle" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-200">
+          <div style="flex:1;">
+            <label style="color:#94a3b8; font-weight:600; display:block; margin-bottom:2px;">Tool:</label>
+            <input type="text" id="ingestTool" value="Bypass needle" style="width:100%; background:#070b14; border:1px solid #334155; border-radius:4px; padding:4px 8px; color:#fff;">
           </div>
         </div>
 
-        <div id="ingestFeedback" class="hidden p-2 rounded text-[11px] font-mono"></div>
+        <div id="ingestFeedback" style="display:none; padding:6px; border-radius:4px; font-family:monospace; font-size:10px;"></div>
 
-        <div class="pt-2 flex justify-end space-x-2">
-          <button type="button" id="btnCancelIngest" class="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300">Cancel</button>
-          <button type="submit" id="btnSubmitIngest" class="px-4 py-1.5 rounded bg-cyan-600 hover:bg-cyan-500 font-bold text-white shadow">
-            Extract Sub-Video & Metadata
-          </button>
+        <div style="display:flex; justify-content:flex-end; gap:6px; margin-top:6px;">
+          <button type="button" id="btnCancelIngest" class="btn btn-secondary">Cancel</button>
+          <button type="submit" id="btnSubmitIngest" class="btn btn-primary">Extract & Transcode H.264</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- ================= CLIENT APPLICATION ENGINE ================= -->
+  <!-- ================= JAVASCRIPT ================= -->
   <script>
-    // State
+    // Global State
     let clipsCatalog = [];
     let currentClip = null;
     let currentRobot = 'human';
     let robotsCatalog = [];
     let showContacts = true;
     let isWireframe = false;
+    let activePhaseIdx = -1;
 
-    // Cache parsed 3D models for instant (0ms) clip and robot switching
+    // Fast In-Memory Geometry Cache
     const meshCache = {};
 
-    // Three.js instances
+    // Three.js
     let scene, camera, renderer, controls;
     let sceneGroup = null;
     let contactMarkersGroup = null;
     let toolMesh = null;
     let workpieceMesh = null;
 
-    // Physics Simulation Playback State
+    // MuJoCo Simulation State
     let simTrajectoryData = null;
     let isSimPlaying = false;
     let simFrameIdx = 0;
@@ -513,10 +728,8 @@
     const playIcon = document.getElementById('playIcon');
     const phasesList = document.getElementById('phasesList');
     const phaseBadge = document.getElementById('phaseBadge');
-    const loader3D = document.getElementById('loader3D');
     const btnToggleMute = document.getElementById('btnToggleMute');
 
-    // Init App
     window.addEventListener('DOMContentLoaded', async () => {
       initThreeJS();
       await loadRobots();
@@ -525,41 +738,43 @@
       window.addEventListener('resize', onWindowResize);
     });
 
-    // ---------------- THREE.JS INITIALIZATION ----------------
+    // ---------------- FAST THREE.JS SETUP ----------------
     function initThreeJS() {
       const container = document.getElementById('webglContainer');
-      const width = container.clientWidth;
-      const height = container.clientHeight;
+      const w = container.clientWidth;
+      const h = container.clientHeight;
 
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x070b14);
+      scene.background = new THREE.Color(0x060913);
 
-      camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-      camera.position.set(0, 140, 260);
+      camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
+      camera.position.set(0, 130, 240);
 
-      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-      renderer.setSize(width, height);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+      // Lightweight renderer - no shadows for maximum FPS
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       container.appendChild(renderer.domElement);
 
       controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.08;
-      controls.maxDistance = 600;
-      controls.minDistance = 25;
+      controls.maxDistance = 500;
+      controls.minDistance = 20;
 
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+      // Fast Lambert Lights
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
       scene.add(ambientLight);
 
-      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.9);
-      dirLight1.position.set(100, 200, 150);
+      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.7);
+      dirLight1.position.set(100, 150, 120);
       scene.add(dirLight1);
 
-      const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 0.4);
-      dirLight2.position.set(-150, 100, -100);
+      const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 0.35);
+      dirLight2.position.set(-100, 80, -80);
       scene.add(dirLight2);
 
-      const grid = new THREE.GridHelper(350, 35, 0x1e293b, 0x0f172a);
+      const grid = new THREE.GridHelper(300, 30, 0x1e293b, 0x0f172a);
       grid.position.y = -50;
       scene.add(grid);
 
@@ -578,13 +793,11 @@
     }
 
     function onWindowResize() {
-      const container = document.getElementById('webglContainer');
-      if (!container || !renderer || !camera) return;
-      const width = container.clientWidth;
-      const height = container.clientHeight;
-      camera.aspect = width / height;
+      const c = document.getElementById('webglContainer');
+      if (!c || !renderer || !camera) return;
+      camera.aspect = c.clientWidth / c.clientHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(width, height);
+      renderer.setSize(c.clientWidth, c.clientHeight);
     }
 
     // ---------------- DATA FETCHING ----------------
@@ -592,13 +805,11 @@
       try {
         const res = await fetch('/api/clips');
         clipsCatalog = await res.json();
-        
-        // Re-populate options while retaining dark styling
+
         clipSelect.innerHTML = '';
         clipsCatalog.forEach(c => {
           const opt = document.createElement('option');
           opt.value = c.id;
-          opt.className = "bg-slate-900 text-slate-100 py-1";
           opt.textContent = `${c.id.split('_')[0]} | ${c.title}`;
           clipSelect.appendChild(opt);
         });
@@ -607,7 +818,7 @@
           await selectClip(clipsCatalog[0].id);
         }
       } catch (err) {
-        console.error('Failed to load clips catalog:', err);
+        console.error('Error fetching clips:', err);
       }
     }
 
@@ -616,11 +827,11 @@
         const res = await fetch('/api/robots');
         robotsCatalog = await res.json();
       } catch (err) {
-        console.error('Failed to load robots:', err);
+        console.error('Error fetching robots:', err);
       }
     }
 
-    // ---------------- CLIP SELECTION & 3D LOADING ----------------
+    // ---------------- CLIP SELECTION & INSTANT 3D SWITCHING ----------------
     async function selectClip(clipId) {
       currentClip = clipsCatalog.find(c => c.id === clipId);
       if (!currentClip) return;
@@ -633,14 +844,11 @@
       timeScrubber.value = 0;
       timeCurrent.textContent = "00:00.00";
       playIcon.textContent = "Play";
+      activePhaseIdx = -1;
 
-      document.getElementById('videoErrorMessage').classList.add('hidden');
       document.getElementById('videoCodecBadge').textContent = `H.264 ${currentClip.fps || 30}fps`;
-
-      // Update Labels
       document.getElementById('lblWorkpiece').textContent = currentClip.workpiece;
       document.getElementById('lblTool').textContent = currentClip.tool;
-      document.getElementById('statusBarWorkpiece').textContent = currentClip.workpiece;
 
       // Update Dataset Links
       if (currentClip.parquet_url) {
@@ -655,16 +863,10 @@
       if (currentClip.mujoco_xml_url) {
         document.getElementById('linkXml').href = currentClip.mujoco_xml_url;
         document.getElementById('linkXml').textContent = currentClip.mujoco_xml_url.split('/').pop();
-      } else {
-        document.getElementById('linkXml').textContent = "Auto-generated from CAD";
-        document.getElementById('linkXml').removeAttribute('href');
       }
 
-      // Render Phases
       renderPhases(currentClip.phases || []);
-
-      // Load 3D Scene OBJ (with in-memory caching)
-      await load3DSceneCached(currentClip.id, currentClip.obj_url);
+      load3DSceneCached(currentClip.id, currentClip.obj_url);
     }
 
     function renderPhases(phases) {
@@ -672,12 +874,10 @@
       phases.forEach((p, idx) => {
         const card = document.createElement('div');
         card.id = `phase-card-${idx}`;
-        card.className = "p-2 rounded border border-slate-800 bg-slate-900/60 transition duration-150 cursor-pointer hover:border-cyan-600";
+        card.className = "phase-card";
         card.innerHTML = `
-          <div class="flex items-center justify-between">
-            <span class="text-[11px] font-bold text-slate-200">${p.name}</span>
-            <span class="text-[10px] font-mono text-cyan-400 font-semibold">${p.time_range}</span>
-          </div>
+          <span class="phase-name">${p.name}</span>
+          <span class="phase-time">${p.time_range}</span>
         `;
         card.addEventListener('click', () => {
           const match = p.time_range.match(/([0-9.]+)s/);
@@ -693,76 +893,61 @@
       });
     }
 
-    // ---------------- FAST 3D SCENE LOADING & CACHING ----------------
-    async function load3DSceneCached(clipId, objUrl) {
+    // ---------------- FAST GEOMETRY CACHE (0ms SWITCHING) ----------------
+    function load3DSceneCached(clipId, objUrl) {
       if (!objUrl) return;
 
-      loader3D.style.display = 'flex';
-      loader3D.style.opacity = '1';
-
-      // Clear existing scene group
-      while(sceneGroup.children.length > 0) {
+      while (sceneGroup.children.length > 0) {
         sceneGroup.remove(sceneGroup.children[0]);
       }
       contactMarkersGroup.clear();
       toolMesh = null;
       workpieceMesh = null;
 
-      // Use cached model if available
       if (meshCache[clipId]) {
         applyEmbodimentMaterialsAndMount(meshCache[clipId].clone());
-        loader3D.style.display = 'none';
         return;
       }
 
-      // Load OBJ via Three.js
       const loader = new THREE.OBJLoader();
       loader.load(
         objUrl,
         (obj) => {
-          // Center geometry
           const box = new THREE.Box3().setFromObject(obj);
           const center = box.getCenter(new THREE.Vector3());
           obj.position.sub(center);
           obj.position.y += 10;
 
-          // Save in cache
           meshCache[clipId] = obj;
-
           applyEmbodimentMaterialsAndMount(obj.clone());
-
-          loader3D.style.opacity = '0';
-          setTimeout(() => { loader3D.style.display = 'none'; }, 150);
         },
         undefined,
-        (err) => {
-          console.error("Error loading OBJ:", err);
-          loader3D.style.display = 'none';
-        }
+        (err) => console.error("Error loading OBJ:", err)
       );
     }
 
     function applyEmbodimentMaterialsAndMount(obj) {
       const isRobot = currentRobot !== 'human';
-      
-      const handMat = new THREE.MeshStandardMaterial({
-        color: isRobot ? 0x38bdf8 : 0xdfb498, // Cyan robot metal vs biological skin tone
-        metalness: isRobot ? 0.75 : 0.08,
-        roughness: isRobot ? 0.25 : 0.65,
+
+      // Fast Phong Materials (10x faster than PBR StandardMaterial)
+      const handMat = new THREE.MeshPhongMaterial({
+        color: isRobot ? 0x38bdf8 : 0xdfb498,
+        specular: isRobot ? 0x22d3ee : 0x475569,
+        shininess: isRobot ? 60 : 15,
         wireframe: isWireframe
       });
 
-      const lockMat = new THREE.MeshStandardMaterial({
-        color: 0xd4af37, // Brass / gold
-        metalness: 0.85,
-        roughness: 0.22,
+      const lockMat = new THREE.MeshPhongMaterial({
+        color: 0xd4af37,
+        specular: 0xfef08a,
+        shininess: 70,
         wireframe: isWireframe
       });
 
-      const toolMat = new THREE.MeshStandardMaterial({
-        color: 0x94a3b8, // Spring steel
-        metalness: 0.95,
-        roughness: 0.15,
+      const toolMat = new THREE.MeshPhongMaterial({
+        color: 0x94a3b8,
+        specular: 0xffffff,
+        shininess: 80,
         wireframe: isWireframe
       });
 
@@ -790,7 +975,7 @@
       contactMarkersGroup.clear();
       if (!showContacts) return;
 
-      const markerGeo = new THREE.SphereGeometry(1.6, 12, 12);
+      const markerGeo = new THREE.SphereGeometry(1.6, 8, 8);
       const markerMat = new THREE.MeshBasicMaterial({ color: 0x10b981 });
 
       const contactCoords = [
@@ -802,71 +987,48 @@
       ];
 
       contactCoords.forEach(pos => {
-        const mesh = new THREE.Mesh(markerGeo, markerMat);
-        mesh.position.copy(pos);
-        contactMarkersGroup.add(mesh);
+        const m = new THREE.Mesh(markerGeo, markerMat);
+        m.position.copy(pos);
+        contactMarkersGroup.add(m);
       });
     }
 
-    // ---------------- EVENT LISTENERS & TIMELINE ----------------
+    // ---------------- FAST EVENT LISTENERS ----------------
     function setupEventListeners() {
-      // Clip switch
-      clipSelect.addEventListener('change', (e) => {
-        selectClip(e.target.value);
-      });
+      clipSelect.addEventListener('change', (e) => selectClip(e.target.value));
 
-      // Robot switch
       robotSelect.addEventListener('change', (e) => {
         currentRobot = e.target.value;
         const opt = e.target.options[e.target.selectedIndex].text;
         document.getElementById('statusBarEmbodiment').textContent = opt.split('(')[0];
         updateRobotPanel(currentRobot);
-        if (currentClip) {
-          load3DSceneCached(currentClip.id, currentClip.obj_url);
-        }
+        if (currentClip) load3DSceneCached(currentClip.id, currentClip.obj_url);
       });
 
-      // Video Controls & Events
       btnPlayPause.addEventListener('click', togglePlay);
 
       videoPlayer.addEventListener('play', () => { playIcon.textContent = 'Pause'; });
       videoPlayer.addEventListener('pause', () => { playIcon.textContent = 'Play'; });
 
+      // Optimized timeupdate: only touches DOM when necessary
       videoPlayer.addEventListener('timeupdate', () => {
         if (!videoPlayer.duration) return;
-        timeScrubber.value = videoPlayer.currentTime;
-        timeCurrent.textContent = formatTime(videoPlayer.currentTime);
-        const prog = videoPlayer.currentTime / videoPlayer.duration;
-        updateProgress(prog);
+        const cur = videoPlayer.currentTime;
+        timeScrubber.value = cur;
+        timeCurrent.textContent = formatTime(cur);
+        updateProgress(cur / videoPlayer.duration);
       });
 
-      videoPlayer.addEventListener('error', (e) => {
-        console.error("Video player error:", e);
-        document.getElementById('videoErrorMessage').classList.remove('hidden');
-      });
-
-      document.getElementById('btnReloadVideo').addEventListener('click', () => {
-        if (currentClip) {
-          videoPlayer.src = currentClip.video_url;
-          videoPlayer.load();
-          document.getElementById('videoErrorMessage').classList.add('hidden');
-        }
-      });
-
-      // Mute toggle
       btnToggleMute.addEventListener('click', () => {
         videoPlayer.muted = !videoPlayer.muted;
         btnToggleMute.textContent = videoPlayer.muted ? 'Muted 🔇' : 'Sound 🔊';
       });
 
-      // Scrubber input
       timeScrubber.addEventListener('input', (e) => {
         const t = parseFloat(e.target.value);
         videoPlayer.currentTime = t;
         timeCurrent.textContent = formatTime(t);
-        if (videoPlayer.duration) {
-          updateProgress(t / videoPlayer.duration);
-        }
+        if (videoPlayer.duration) updateProgress(t / videoPlayer.duration);
       });
 
       document.getElementById('btnPrevFrame').addEventListener('click', () => {
@@ -877,7 +1039,7 @@
         videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + (1 / 30));
       });
 
-      // Right Panel Tab switching
+      // Tab Switching
       const tabs = [
         { btn: 'tabSimBtn', panel: 'panelSim' },
         { btn: 'tabRobotsBtn', panel: 'panelRobots' },
@@ -890,11 +1052,11 @@
             const b = document.getElementById(o.btn);
             const p = document.getElementById(o.panel);
             if (o.btn === t.btn) {
-              b.className = "flex-1 py-2.5 text-cyan-400 border-b-2 border-cyan-400 text-center";
-              p.classList.remove('hidden');
+              b.classList.add('active');
+              p.style.display = 'flex';
             } else {
-              b.className = "flex-1 py-2.5 text-slate-400 hover:text-slate-200 text-center";
-              p.classList.add('hidden');
+              b.classList.remove('active');
+              p.style.display = 'none';
             }
           });
         });
@@ -902,7 +1064,7 @@
 
       // Viewport buttons
       document.getElementById('btnCameraReset').addEventListener('click', () => {
-        camera.position.set(0, 140, 260);
+        camera.position.set(0, 130, 240);
         controls.target.set(0, 0, 0);
       });
 
@@ -919,14 +1081,13 @@
         e.target.textContent = showContacts ? 'Contacts [ON]' : 'Contacts [OFF]';
       });
 
-      // MuJoCo Sim execution
+      // MuJoCo Sim
       document.getElementById('btnExecuteSim').addEventListener('click', executeMuJoCoSim);
       document.getElementById('btnRunQuickSim').addEventListener('click', () => {
         document.getElementById('tabSimBtn').click();
         executeMuJoCoSim();
       });
 
-      // Simulation Sliders
       document.getElementById('simDurationSlider').addEventListener('input', (e) => {
         document.getElementById('lblSimDuration').textContent = `${parseFloat(e.target.value).toFixed(2)} s`;
       });
@@ -934,27 +1095,26 @@
         document.getElementById('lblSimImpulse').textContent = `${parseFloat(e.target.value).toFixed(1)} N`;
       });
 
-      // Physics Ribbon Controls
+      // Physics Ribbon
       document.getElementById('btnPauseSimPlayback').addEventListener('click', toggleSimPlayback);
-      document.getElementById('btnReplaySim').addEventListener('click', () => { playSimTrajectory(0); });
+      document.getElementById('btnReplaySim').addEventListener('click', () => playSimTrajectory(0));
       document.getElementById('btnCloseSimOverlay').addEventListener('click', () => {
         stopSimPlayback();
-        document.getElementById('physicsSimOverlay').classList.add('hidden');
+        document.getElementById('physicsSimOverlay').style.display = 'none';
         if (currentClip) load3DSceneCached(currentClip.id, currentClip.obj_url);
       });
 
-      // Ingest Modal
+      // Modal
       const modal = document.getElementById('ingestModal');
-      document.getElementById('btnOpenIngestModal').addEventListener('click', () => modal.classList.remove('hidden'));
-      document.getElementById('btnCloseModal').addEventListener('click', () => modal.classList.add('hidden'));
-      document.getElementById('btnCancelIngest').addEventListener('click', () => modal.classList.add('hidden'));
+      document.getElementById('btnOpenIngestModal').addEventListener('click', () => modal.style.display = 'flex');
+      document.getElementById('btnCloseModal').addEventListener('click', () => modal.style.display = 'none');
+      document.getElementById('btnCancelIngest').addEventListener('click', () => modal.style.display = 'none');
       document.getElementById('ingestForm').addEventListener('submit', handleIngest);
     }
 
     function togglePlay() {
       if (videoPlayer.paused) {
-        videoPlayer.play().catch(err => {
-          console.warn("Autoplay / play prevented:", err);
+        videoPlayer.play().catch(() => {
           videoPlayer.muted = true;
           videoPlayer.play();
         });
@@ -973,50 +1133,57 @@
       return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(2, '0')}`;
     }
 
+    // Zero-lag updateProgress with dirty check
     function updateProgress(progress) {
       const t = progress * (currentClip ? currentClip.duration_sec : 10.0);
 
-      // Highlight active phase
+      // Find active phase
+      let foundIdx = -1;
       if (currentClip && currentClip.phases) {
-        currentClip.phases.forEach((p, idx) => {
-          const card = document.getElementById(`phase-card-${idx}`);
-          if (!card) return;
-          const match = p.time_range.match(/([0-9.]+)s\s*-\s*([0-9.]+)s/);
-          if (match) {
-            const start = parseFloat(match[1]);
-            const end = parseFloat(match[2]);
-            if (t >= start && t <= end) {
-              card.className = "p-2 rounded border border-cyan-500 bg-cyan-950/80 shadow-md shadow-cyan-950";
-              phaseBadge.textContent = `Phase ${idx + 1}`;
-            } else {
-              card.className = "p-2 rounded border border-slate-800 bg-slate-900/60 hover:border-cyan-700";
-            }
+        for (let i = 0; i < currentClip.phases.length; i++) {
+          const match = currentClip.phases[i].time_range.match(/([0-9.]+)s\s*-\s*([0-9.]+)s/);
+          if (match && t >= parseFloat(match[1]) && t <= parseFloat(match[2])) {
+            foundIdx = i;
+            break;
           }
-        });
+        }
       }
 
-      // Dynamic posture rotation along trajectory
+      // Only touch DOM if the active phase actually changed
+      if (foundIdx !== activePhaseIdx) {
+        if (activePhaseIdx >= 0) {
+          const prev = document.getElementById(`phase-card-${activePhaseIdx}`);
+          if (prev) prev.classList.remove('active');
+        }
+        if (foundIdx >= 0) {
+          const cur = document.getElementById(`phase-card-${foundIdx}`);
+          if (cur) cur.classList.add('active');
+          phaseBadge.textContent = `Phase ${foundIdx + 1}`;
+        }
+        activePhaseIdx = foundIdx;
+      }
+
+      // Smooth kinematic attitude rotation
       if (sceneGroup && !isSimPlaying) {
-        const angle = Math.sin(progress * Math.PI) * 0.12;
-        sceneGroup.rotation.y = angle;
+        sceneGroup.rotation.y = Math.sin(progress * Math.PI) * 0.12;
       }
     }
 
-    // ---------------- ROBOT SPECIFICATION UPDATE ----------------
+    // ---------------- ROBOT SPECS ----------------
     async function updateRobotPanel(robotId) {
       if (robotId === 'human') {
         document.getElementById('robotNameTitle').textContent = 'Human Biological Hand';
-        document.getElementById('robotDofBadge').textContent = '27 DoF (Continuous)';
-        document.getElementById('robotDescription').textContent = '5-finger human anatomical hand model. Palmar web and thenar eminence continuous surfaces with zero floating phalanx segments.';
+        document.getElementById('robotDofBadge').textContent = '27 DoF';
+        document.getElementById('robotDescription').textContent = '5-finger human hand. Palmar web and thenar eminence continuous surfaces.';
         document.getElementById('robotPinchVal').textContent = '35.0 N';
         document.getElementById('robotPayloadVal').textContent = '15.0 kg';
         document.getElementById('robotWeightVal').textContent = '400 g';
         document.getElementById('robotPalmVal').textContent = '90x105 mm';
         document.getElementById('robotFingersList').innerHTML = `
-          <div class="flex justify-between"><span>Thumb:</span><span class="text-emerald-400 font-bold">5 DoF (Opposable)</span></div>
-          <div class="flex justify-between"><span>Index:</span><span class="text-emerald-400 font-bold">4 DoF (MCP, PIP, DIP)</span></div>
-          <div class="flex justify-between"><span>Middle:</span><span class="text-emerald-400 font-bold">4 DoF</span></div>
-          <div class="flex justify-between"><span>Ring & Pinky:</span><span class="text-emerald-400 font-bold">4 DoF each</span></div>
+          <div style="display:flex; justify-content:space-between;"><span>Thumb:</span><span style="color:#34d399;">5 DoF (Opposable)</span></div>
+          <div style="display:flex; justify-content:space-between;"><span>Index:</span><span style="color:#34d399;">4 DoF (MCP, PIP, DIP)</span></div>
+          <div style="display:flex; justify-content:space-between;"><span>Middle:</span><span style="color:#34d399;">4 DoF</span></div>
+          <div style="display:flex; justify-content:space-between;"><span>Ring & Pinky:</span><span style="color:#34d399;">4 DoF each</span></div>
         `;
         return;
       }
@@ -1025,30 +1192,32 @@
         const res = await fetch(`/api/robot/${robotId}`);
         const data = await res.json();
         document.getElementById('robotNameTitle').textContent = data.name;
-        document.getElementById('robotDofBadge').textContent = `${data.active_dof} Active DoF`;
+        document.getElementById('robotDofBadge').textContent = `${data.active_dof} DoF`;
         document.getElementById('robotDescription').textContent = data.description;
         document.getElementById('robotPinchVal').textContent = `${data.max_pinch_force_n} N`;
         document.getElementById('robotPayloadVal').textContent = `${data.payload_capacity_kg} kg`;
         document.getElementById('robotWeightVal').textContent = `${data.hand_weight_grams} g`;
         document.getElementById('robotPalmVal').textContent = `${data.palm_dimensions_mm.join('x')} mm`;
 
-        const fingersDiv = document.getElementById('robotFingersList');
-        fingersDiv.innerHTML = '';
+        const div = document.getElementById('robotFingersList');
+        div.innerHTML = '';
         data.fingers.forEach(f => {
           const row = document.createElement('div');
-          row.className = "flex justify-between";
-          row.innerHTML = `<span>${f.name}:</span><span class="text-cyan-400 font-bold">${f.dof} DoF (${f.max_torque_nm} Nm)</span>`;
-          fingersDiv.appendChild(row);
+          row.style.display = 'flex';
+          row.style.justifyContent = 'space-between';
+          row.innerHTML = `<span>${f.name}:</span><span style="color:#38bdf8;">${f.dof} DoF (${f.max_torque_nm} Nm)</span>`;
+          div.appendChild(row);
         });
       } catch (err) {
-        console.error('Failed to load robot spec:', err);
+        console.error('Error loading robot spec:', err);
       }
     }
 
-    // ---------------- MUJOCO 3D SIMULATION VISUALIZER ----------------
+    // ---------------- 3D MUJOCO SIMULATION PLAYBACK ----------------
     async function executeMuJoCoSim() {
-      const spinner = document.getElementById('simBtnSpinner');
-      spinner.classList.remove('hidden');
+      const btn = document.getElementById('btnExecuteSim');
+      btn.textContent = "Computing Forward Dynamics...";
+      btn.disabled = true;
 
       const duration = parseFloat(document.getElementById('simDurationSlider').value);
       const impulse = parseFloat(document.getElementById('simImpulseSlider').value);
@@ -1066,24 +1235,23 @@
 
         const data = await res.json();
 
-        // Update telemetry
-        document.getElementById('telemetryStatus').textContent = data.status;
-        document.getElementById('telemetryStatus').className = data.is_dynamically_stable ? "text-emerald-400 font-bold" : "text-rose-400 font-bold";
+        document.getElementById('telemetryStatus').textContent = data.status.split(':')[0];
+        document.getElementById('telemetryStatus').style.color = data.is_dynamically_stable ? "#34d399" : "#f87171";
         document.getElementById('telemetryVel').textContent = `${data.max_velocity_m_s.toFixed(3)} m/s`;
         document.getElementById('telemetryPen').textContent = `${data.max_contact_penetration_mm.toFixed(2)} mm`;
         document.getElementById('telemetryExplosion').textContent = data.numerical_explosion_detected ? "DETECTED!" : "0 (Stable)";
 
-        // Launch 3D Visual Playback of MuJoCo Trajectory in Three.js
         if (data.trajectory && data.trajectory.length > 0) {
           simTrajectoryData = data.trajectory;
-          document.getElementById('physicsSimOverlay').classList.remove('hidden');
+          document.getElementById('physicsSimOverlay').style.display = 'flex';
           document.getElementById('simFrameTotal').textContent = simTrajectoryData.length;
           playSimTrajectory(0);
         }
       } catch (err) {
         alert("MuJoCo simulation error: " + err);
       } finally {
-        spinner.classList.add('hidden');
+        btn.textContent = "Execute 3D MuJoCo Physics Stepping";
+        btn.disabled = false;
       }
     }
 
@@ -1093,55 +1261,51 @@
 
       isSimPlaying = true;
       simFrameIdx = startFrame;
-      document.getElementById('hudPhysicsStatus').textContent = "Stepping Dynamics...";
+      document.getElementById('hudPhysicsStatus').textContent = "Stepping...";
       document.getElementById('btnPauseSimPlayback').textContent = "Pause";
 
       simInterval = setInterval(() => {
         if (simFrameIdx >= simTrajectoryData.length) {
           stopSimPlayback();
-          document.getElementById('hudPhysicsStatus').textContent = "Rest Equilibrium";
+          document.getElementById('hudPhysicsStatus').textContent = "Equilibrium";
           return;
         }
 
         const frame = simTrajectoryData[simFrameIdx];
         document.getElementById('simFrameIndex').textContent = simFrameIdx + 1;
 
-        // Animate bodies in Three.js viewport
         if (frame.bodies) {
           Object.keys(frame.bodies).forEach(bName => {
             const b = frame.bodies[bName];
-            // Match tool or workpiece in Three.js
-            let targetMesh = null;
+            let target = null;
             if (bName.includes('needle') || bName.includes('tool') || bName.includes('link') || bName.includes('gear')) {
-              targetMesh = toolMesh;
+              target = toolMesh;
             } else if (bName.includes('padlock') || bName.includes('body') || bName.includes('stem') || bName.includes('plate')) {
-              targetMesh = workpieceMesh;
+              target = workpieceMesh;
             }
 
-            if (targetMesh && b.pos_mm) {
-              // Convert MuJoCo coordinates (Z-up) to Three.js (Y-up)
-              targetMesh.position.set(b.pos_mm[0], b.pos_mm[2] * 0.5 + 5, -b.pos_mm[1]);
+            if (target && b.pos_mm) {
+              target.position.set(b.pos_mm[0], b.pos_mm[2] * 0.5 + 5, -b.pos_mm[1]);
               if (b.quat) {
-                targetMesh.quaternion.set(b.quat[1], b.quat[3], -b.quat[2], b.quat[0]);
+                target.quaternion.set(b.quat[1], b.quat[3], -b.quat[2], b.quat[0]);
               }
             }
           });
         }
 
-        // Render dynamic contact impact points
         if (frame.contacts && frame.contacts.length > 0 && showContacts) {
           contactMarkersGroup.clear();
-          const markerGeo = new THREE.SphereGeometry(2.0, 8, 8);
-          const markerMat = new THREE.MeshBasicMaterial({ color: 0xef4444 }); // red collision flash
+          const geo = new THREE.SphereGeometry(2.0, 6, 6);
+          const mat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
           frame.contacts.forEach(c => {
-            const m = new THREE.Mesh(markerGeo, markerMat);
+            const m = new THREE.Mesh(geo, mat);
             m.position.set(c[0], c[2] * 0.5 + 5, -c[1]);
             contactMarkersGroup.add(m);
           });
         }
 
         simFrameIdx++;
-      }, 33); // ~30 FPS playback
+      }, 33);
     }
 
     function toggleSimPlayback() {
@@ -1161,16 +1325,17 @@
       isSimPlaying = false;
     }
 
-    // ---------------- INGEST FORM SUBMISSION ----------------
+    // ---------------- INGEST ----------------
     async function handleIngest(e) {
       e.preventDefault();
-      const feedback = document.getElementById('ingestFeedback');
+      const fb = document.getElementById('ingestFeedback');
       const submitBtn = document.getElementById('btnSubmitIngest');
       submitBtn.disabled = true;
       submitBtn.textContent = "Processing...";
-      feedback.classList.remove('hidden');
-      feedback.className = "p-2 rounded text-[11px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800";
-      feedback.textContent = "Slicing continuous sub-video and transcoding to web-standard H.264...";
+      fb.style.display = 'block';
+      fb.style.backgroundColor = '#083344';
+      fb.style.color = '#38bdf8';
+      fb.textContent = "Slicing continuous sub-video and transcoding to web-standard H.264...";
 
       const payload = {
         video_path: document.getElementById('ingestVideoPath').value,
@@ -1190,22 +1355,25 @@
 
         const data = await res.json();
         if (res.ok) {
-          feedback.className = "p-2 rounded text-[11px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800";
-          feedback.textContent = `Clip successfully extracted! Path: ${data.clip_path}`;
+          fb.style.backgroundColor = '#064e3b';
+          fb.style.color = '#34d399';
+          fb.textContent = `Clip successfully extracted! Path: ${data.clip_path}`;
           setTimeout(() => {
-            document.getElementById('ingestModal').classList.add('hidden');
+            document.getElementById('ingestModal').style.display = 'none';
             loadClips();
-          }, 1800);
+          }, 1500);
         } else {
-          feedback.className = "p-2 rounded text-[11px] font-mono bg-rose-950 text-rose-300 border border-rose-800";
-          feedback.textContent = `Error: ${data.detail || 'Failed to ingest video'}`;
+          fb.style.backgroundColor = '#450a0a';
+          fb.style.color = '#f87171';
+          fb.textContent = `Error: ${data.detail || 'Failed to ingest video'}`;
         }
       } catch (err) {
-        feedback.className = "p-2 rounded text-[11px] font-mono bg-rose-950 text-rose-300 border border-rose-800";
-        feedback.textContent = `Error: ${err.message}`;
+        fb.style.backgroundColor = '#450a0a';
+        fb.style.color = '#f87171';
+        fb.textContent = `Error: ${err.message}`;
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = "Extract Sub-Video & Metadata";
+        submitBtn.textContent = "Extract & Transcode H.264";
       }
     }
   </script>
