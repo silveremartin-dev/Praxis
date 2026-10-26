@@ -224,19 +224,18 @@ class VideoPoseExtractor:
         else:
             l_thumb_slide = 1.0
 
-        # Left palm sits at bottom-left of padlock (`[-28, -6, 6]`), angled so:
-        # - Local +Z points up-right behind the padlock (4 fingers wrap behind the top/right of the padlock)
-        # - Local +Y (palmar) faces +Y/+X (toward the padlock)
-        # - Local -X (Left hand radial thumb side) is on the front-left so the connected thumb arches across the front face (+Y)!
-        lh_palm_world = lock_to_world(np.array([-27.0, -5.0, 4.0 - 3.0 * l_thumb_slide]))
+        # Left palm sits behind and to the left of the padlock body (X <= -25mm, Y <= -16mm), angled so:
+        # - Fingers wrap across the back surface (Y <= -13.5mm, strictly outside padlock back at Y = -9.5mm)
+        # - The thumb wraps around the left edge to the front face (Y >= +13.5mm, strictly on the front face)
+        lh_palm_world = lock_to_world(np.array([-25.0, -16.5, 7.0 - 3.0 * l_thumb_slide]))
 
         # Orthonormal basis for Left Hand:
-        # +Z_lh (finger direction): up and right `[0.55, -0.15, 0.82]`
-        # +Y_lh (palmar normal): forward and right `[0.35, 0.92, -0.17]`
-        # +X_lh = Y_lh x Z_lh (so -X_lh radial thumb side points front-left!)
-        z_lh = np.array([0.52, -0.18, 0.835])
+        # +Z_lh (finger direction): up and right along back face `[0.45, -0.05, 0.89]`
+        # +Y_lh (palmar normal): facing forward into the back face `[0.15, 0.98, -0.10]`
+        # +X_lh = Y_lh x Z_lh
+        z_lh = np.array([0.45, -0.05, 0.89])
         z_lh /= np.linalg.norm(z_lh)
-        y_lh = np.array([0.32, 0.93, -0.18])
+        y_lh = np.array([0.15, 0.98, -0.10])
         y_lh = y_lh - np.dot(y_lh, z_lh) * z_lh
         y_lh /= np.linalg.norm(y_lh)
         x_lh = np.cross(y_lh, z_lh)
@@ -244,18 +243,18 @@ class VideoPoseExtractor:
         R_lh_world = R_lock @ R_lh_local
 
         # Target 3D position for the connected Left Thumb Tip on the front face of the padlock:
-        # Padlock front face is at Y_local = +9.5mm; with thumb radius ~3.5mm, center at Y = +13.0mm gives SDF = 0.0mm (tangent, zero penetration)
+        # Padlock front face is at Y_local = +9.5mm. Thumb center at Y = +14.5mm guarantees zero penetration.
         lh_thumb_target_world = lock_to_world(np.array([
-            9.0 - 2.0 * l_thumb_slide,
-            13.0,
-            12.0 - 13.0 * l_thumb_slide
+            5.0 - 2.0 * l_thumb_slide,
+            14.5,
+            11.5 - 12.5 * l_thumb_slide
         ]))
 
         lh_curls = {
-            "index": (0.20, 0.30, 0.20),   # Extended along top edge behind shackle arch
-            "middle": (0.45, 0.60, 0.35),  # Supporting back face
-            "ring": (0.55, 0.70, 0.40),
-            "pinky": (0.65, 0.75, 0.45),
+            "index": (0.22, 0.28, 0.18),   # Curved gently along back top plate
+            "middle": (0.30, 0.40, 0.25),  # Resting against back plate
+            "ring": (0.40, 0.50, 0.30),
+            "pinky": (0.50, 0.60, 0.35),
         }
 
         if use_robot_hands:

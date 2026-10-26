@@ -65,7 +65,7 @@ def slice_action_video(
         ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
         cmd = [
             ffmpeg_bin, "-y", "-i", temp_clip_path,
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
+            "-c:v", "libx264", "-g", "1", "-tune", "zerolatency", "-preset", "ultrafast", "-crf", "18",
             "-pix_fmt", "yuv420p", "-movflags", "+faststart",
             output_clip_path
         ]

@@ -155,41 +155,45 @@ class AnatomicalHandModel:
             finger_spread = {"index": 0.05, "middle": 0.0, "ring": -0.05, "pinky": -0.10}
 
         # -------------------------------------------------------------
-        # 1. Metacarpal Palm (Smooth solid body + wrist forearm link)
+        # 1. Metacarpal Palm (Smooth cylindrical anatomical rays + carpal arch)
         # -------------------------------------------------------------
-        # Natural palm slab: rounded box with thickness 16mm, width 42mm, length 50mm
-        palm_mesh = trimesh.creation.box(extents=[42.0 * s, 16.0 * s, 48.0 * s])
-        palm_mesh.apply_translation([0.0, -1.0 * s, 0.0])
-        parts.append((palm_mesh, "palm"))
-
-        # Wrist forearm segment leading smoothly into wrist
-        p_wrist = np.array([0.0, -1.5 * s, -24.0 * s])
-        p_forearm = np.array([-2.0 * sign * s, -2.5 * s, -60.0 * s])
-        parts.append((create_smooth_capsule(p_wrist, p_forearm, 17.0 * s, 19.5 * s, sections=16), "palm"))
+        # Carpal wrist crease anchor points
+        p_wrist_mid = np.array([0.0, -2.0 * s, -22.0 * s])
+        p_forearm = np.array([-2.0 * sign * s, -3.0 * s, -55.0 * s])
+        parts.append((create_smooth_capsule(p_wrist_mid, p_forearm, 15.0 * s, 17.5 * s, sections=16), "palm"))
 
         # Knuckle joint positions along the distal edge of the metacarpals (Z = +24mm)
         knuckle_x = {
-            "index": 16.5 * sign * s,
-            "middle": 5.5 * sign * s,
+            "index": 15.5 * sign * s,
+            "middle": 5.0 * sign * s,
             "ring": -5.5 * sign * s,
-            "pinky": -16.0 * sign * s,
+            "pinky": -15.0 * sign * s,
         }
         knuckle_z = {
-            "index": 24.0 * s,
-            "middle": 26.0 * s,
-            "ring": 24.0 * s,
-            "pinky": 21.0 * s,
+            "index": 22.0 * s,
+            "middle": 24.5 * s,
+            "ring": 22.5 * s,
+            "pinky": 19.5 * s,
         }
 
         mcp_points: Dict[str, np.ndarray] = {}
+        # Construct palm from 4 anatomical metacarpal bone rays with smooth condyles
         for fname in ["index", "middle", "ring", "pinky"]:
             kx = knuckle_x[fname]
-            # Palmar cupping (arch): outer fingers cup slightly forward (+Y)
             cup_y = (abs(kx) / 20.0) * 1.5 * s
             p_mcp = np.array([kx, cup_y, knuckle_z[fname]])
             mcp_points[fname] = p_mcp
-            # Metacarpal knuckle condyle (spherical joint)
-            parts.append((create_smooth_capsule(p_mcp, p_mcp, 6.5 * s, 6.5 * s, sections=12), "palm"))
+            
+            # Metacarpal shaft from wrist to knuckle (nested cylinder)
+            p_carpal_origin = np.array([kx * 0.65, -1.5 * s, -20.0 * s])
+            parts.append((create_smooth_capsule(p_carpal_origin, p_mcp, 7.5 * s, 6.5 * s, sections=14), "palm"))
+            # Spherical condyle joint cap at MCP
+            parts.append((create_smooth_capsule(p_mcp, p_mcp, 6.2 * s, 6.2 * s, sections=12), "palm"))
+
+        # Smooth central palmar pad filler
+        p_palm_center_1 = np.array([0.0, -1.0 * s, -2.0 * s])
+        p_palm_center_2 = np.array([0.0, 0.5 * s, 14.0 * s])
+        parts.append((create_smooth_capsule(p_palm_center_1, p_palm_center_2, 12.0 * s, 10.5 * s, sections=16), "palm"))
 
         # -------------------------------------------------------------
         # 2. Four Articulated Fingers (Index, Middle, Ring, Pinky)
@@ -241,11 +245,11 @@ class AnatomicalHandModel:
         # -------------------------------------------------------------
         # 3. Opposable Thumb (Organic Muscular Thenar + 2 Phalanges)
         # -------------------------------------------------------------
-        # CMC joint sits on the radial-palmar side of the wrist
-        p_cmc = np.array([19.0 * sign * s, 3.5 * s, -14.0 * s])
+        # CMC joint sits on the radial-palmar side of the wrist, safely outside workpiece boundary
+        p_cmc = np.array([22.0 * sign * s, 2.0 * s, -14.0 * s])
         # Thenar muscle eminence: smooth fleshy muscle connecting wrist to thumb MCP
-        p_thenar_mcp = np.array([27.0 * sign * s, 9.0 * s, 4.0 * s])
-        thenar_mesh = create_smooth_capsule(p_cmc, p_thenar_mcp, 10.0 * s, 8.0 * s, sections=14)
+        p_thenar_mcp = np.array([29.0 * sign * s, 9.0 * s, 4.0 * s])
+        thenar_mesh = create_smooth_capsule(p_cmc, p_thenar_mcp, 9.5 * s, 7.5 * s, sections=14)
         parts.append((thenar_mesh, "thumb_base"))
 
         l_th_prox = 22.0 * s
@@ -254,12 +258,11 @@ class AnatomicalHandModel:
         if thumb_tip_target_world is not None:
             # Analytical IK for thumb contact pad reaching target without artificial struts
             th_target_local = world_to_local(thumb_tip_target_world)
-            # Recompute thenar orientation pointing naturally towards the target
             vec_to_t = th_target_local - p_cmc
             dist_to_t = float(np.linalg.norm(vec_to_t))
             dir_to_t = vec_to_t / max(dist_to_t, 1e-5)
-            # Bias thenar slightly outward in radial X
-            thenar_dir = 0.70 * dir_to_t + 0.30 * np.array([0.5 * sign, 0.4, 0.2])
+            # Bias thenar cleanly outward in radial X to wrap around outer surface
+            thenar_dir = 0.70 * dir_to_t + 0.30 * np.array([0.7 * sign, 0.5, 0.1])
             thenar_dir /= max(float(np.linalg.norm(thenar_dir)), 1e-5)
             p_thenar_mcp = p_cmc + thenar_dir * (22.0 * s)
 
