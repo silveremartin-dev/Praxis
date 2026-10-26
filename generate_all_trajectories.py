@@ -651,11 +651,7 @@ def generate_06_singer_sewingmachine():
 
 
 if __name__ == "__main__":
-    generate_07_masterlock()
-    generate_08_american_lock_1100()
-    generate_01_dropkey()
-    generate_02_ifixit_dualsense()
-    generate_03_diy_cementwd40()
-    generate_05_watch_zodiac()
-    generate_06_singer_sewingmachine()
-    print("[+] All 7 bimanual single-shot trajectories generated successfully.")
+    from generate_certified_trajectories import run_batch
+    print("[*] Running automated video pose extraction & physics certification pipeline...")
+    run_batch()
+    print("[+] All bimanual single-shot trajectories generated and certified successfully.")
