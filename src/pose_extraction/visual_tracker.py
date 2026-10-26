@@ -120,6 +120,7 @@ class AutomatedVideoPosePipeline:
 
         # Reference scale accumulator
         palm_radii = []
+        prev_gray: Optional[np.ndarray] = None
 
         for f_idx in indices:
             cap.set(cv2.CAP_PROP_POS_FRAMES, int(f_idx))
@@ -128,6 +129,7 @@ class AutomatedVideoPosePipeline:
                 continue
 
             small = cv2.resize(frame, (320, 180))
+            small_gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
             ycrcb = cv2.cvtColor(small, cv2.COLOR_BGR2YCrCb)
             hsv = cv2.cvtColor(small, cv2.COLOR_BGR2HSV)
 
@@ -136,6 +138,19 @@ class AutomatedVideoPosePipeline:
             skin = cv2.bitwise_and(mask1, mask2)
             skin = cv2.morphologyEx(skin, cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
             skin = cv2.morphologyEx(skin, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+
+            # Temporal Dense Optical Flow (Farneback) between consecutive video frames
+            flow_lh = np.zeros(2, dtype=float)
+            flow_rh = np.zeros(2, dtype=float)
+            if prev_gray is not None:
+                flow = cv2.calcOpticalFlowFarneback(
+                    prev_gray, small_gray, None,
+                    pyr_scale=0.5, levels=3, winsize=15,
+                    iterations=3, poly_n=5, poly_sigma=1.2, flags=0
+                )
+            else:
+                flow = None
+            prev_gray = small_gray
 
             ys, xs = np.where(skin > 0)
             if len(xs) < 40:
@@ -147,6 +162,8 @@ class AutomatedVideoPosePipeline:
                     "rh_palm": np.array([220.0, 110.0]),
                     "lh_inner": np.array([135.0, 105.0]),
                     "rh_inner": np.array([185.0, 105.0]),
+                    "flow_lh": flow_lh,
+                    "flow_rh": flow_rh,
                     "palm_r": 20.0,
                     "valid": False,
                 })
@@ -171,6 +188,13 @@ class AutomatedVideoPosePipeline:
             lh_pts = np.column_stack(np.where(lh_mask > 0))  # (y, x)
             rh_pts = np.column_stack(np.where(rh_mask > 0))  # (y, x)
 
+            # Sample temporal motion flow vectors on hand surfaces
+            if flow is not None:
+                if len(lh_pts) > 10:
+                    flow_lh = np.mean(flow[lh_pts[:, 0], lh_pts[:, 1]], axis=0)
+                if len(rh_pts) > 10:
+                    flow_rh = np.mean(flow[rh_pts[:, 0], rh_pts[:, 1]], axis=0)
+
             if len(lh_pts) > 10:
                 lh_inner_idx = np.argmax(lh_pts[:, 1])
                 lh_inner = np.array([lh_pts[lh_inner_idx, 1], lh_pts[lh_inner_idx, 0]], dtype=float)
@@ -190,6 +214,8 @@ class AutomatedVideoPosePipeline:
                 "rh_palm": np.array([max_loc_rh[0], max_loc_rh[1]], dtype=float),
                 "lh_inner": lh_inner,
                 "rh_inner": rh_inner,
+                "flow_lh": flow_lh,
+                "flow_rh": flow_rh,
                 "palm_r": palm_r,
                 "valid": True,
             })
@@ -434,6 +460,33 @@ class AutomatedVideoPosePipeline:
                 "tool_tip": tool_tip.round(2).tolist(),
                 "needle_visible": True,
             })
+
+        # Compute continuous temporal velocities & accelerations across sequential frames
+        prev_v_lh = np.zeros(3)
+        prev_v_rh = np.zeros(3)
+        for i in range(len(frames)):
+            dt = (frames[i]["t"] - frames[i - 1]["t"]) if i > 0 else (frames[1]["t"] - frames[0]["t"] if len(frames) > 1 else 0.033)
+            dt = max(dt, 1e-4)
+            if i > 0:
+                # Wrist velocity in m/s (coordinates are in mm)
+                v_lh = (np.array(frames[i]["lh_joints"][0]) - np.array(frames[i - 1]["lh_joints"][0])) / (dt * 1000.0)
+                v_rh = (np.array(frames[i]["rh_joints"][0]) - np.array(frames[i - 1]["rh_joints"][0])) / (dt * 1000.0)
+                a_lh = (v_lh - prev_v_lh) / dt
+                a_rh = (v_rh - prev_v_rh) / dt
+                prev_v_lh = v_lh
+                prev_v_rh = v_rh
+            else:
+                v_lh = np.zeros(3)
+                v_rh = np.zeros(3)
+                a_lh = np.zeros(3)
+                a_rh = np.zeros(3)
+
+            frames[i]["temporal_dynamics"] = {
+                "vel_lh_m_s": round(float(np.linalg.norm(v_lh)), 3),
+                "vel_rh_m_s": round(float(np.linalg.norm(v_rh)), 3),
+                "accel_lh_m_s2": round(float(np.linalg.norm(a_lh)), 3),
+                "accel_rh_m_s2": round(float(np.linalg.norm(a_rh)), 3),
+            }
 
         return {
             "clip_id": clip_id,
