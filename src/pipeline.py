@@ -90,14 +90,24 @@ def process_action_metadata(
     dyn_profile = dynamics_engine.analyze_trajectory(trajectory_m, mass_grams=mass_estimate_g, fps=fps)
     print(f"    -> Dynamics: peak_acc={dyn_profile.peak_acceleration_m_s2:.2f} m/s2, max_grip={dyn_profile.max_required_grip_n:.2f} N")
 
-    # 5. LeRobot Export
+    # 5. LeRobot Export with Hybrid Impedance and Physics Tokens
     base_name = os.path.splitext(os.path.basename(meta_path))[0]
+    cont_score = dyn_profile.continuity_report.continuity_score if dyn_profile.continuity_report else 1.0
+    tokens = dyn_profile.physics_tokens
+    stiffness_k = tokens.target_stiffness_k_n_m if tokens else 650.0
+    mass_cls = tokens.mass_class.value if tokens else "medium_tool"
+    grasp_type = tokens.grasp_type.value if tokens else "precision_pinch"
+
     out_table = exporter.convert_metadata_to_episode(
         meta,
         num_frames=n_frames,
         contact_force=dyn_profile.max_required_grip_n,
         sdf_min_dist_mm=sdf_min_dist,
-        feasibility_score=audit_report.feasibility_score_percent
+        feasibility_score=audit_report.feasibility_score_percent,
+        continuity_score=cont_score,
+        target_stiffness_k=stiffness_k,
+        mass_class=mass_cls,
+        grasp_type=grasp_type,
     )
     pq_path = exporter.export_parquet(out_table, f"{base_name}.parquet")
     return pq_path

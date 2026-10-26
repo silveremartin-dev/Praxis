@@ -64,3 +64,72 @@ def test_trajectory_dynamics_analysis():
     assert profile.mean_speed_m_s > 0.0
     assert profile.max_required_grip_n > 0.0
     assert len(profile.required_grip_force_newtons) == 30
+    assert profile.continuity_report is not None
+    assert profile.continuity_report.is_continuous is True
+    assert profile.physics_tokens is not None
+    assert len(profile.physics_tokens.feature_vector) == 5
+
+
+from src.dynamics.inverse_dynamics import (
+    PhysicalContinuityAuditor,
+    GraspAffordanceAuditor,
+    PhysicsTokenGenerator,
+    GraspType,
+    MassClass,
+)
+
+
+def test_interframe_continuity_auditor():
+    """Verifies that smooth trajectories pass and teleportation cuts are rejected."""
+    dt = 1.0 / 30.0 # 30 fps
+    t = np.linspace(0, 1.0, 31)
+
+    # 1. Smooth fine manipulation trajectory (speed ~ 0.3 m/s < 2.0 m/s)
+    smooth_traj = np.column_stack([0.05 * np.cos(2 * np.pi * t), 0.05 * np.sin(2 * np.pi * t), t * 0.1])
+    report_smooth = PhysicalContinuityAuditor.audit_trajectory_continuity(smooth_traj, dt=dt)
+    assert report_smooth.is_continuous is True
+    assert report_smooth.max_velocity_m_s < 2.0
+    assert report_smooth.continuity_score > 0.8
+
+    # 2. Teleportation jump (tracking glitch: jump of 0.25m in one frame dt=0.033s -> 7.5 m/s > 2.0 m/s)
+    jump_traj = smooth_traj.copy()
+    jump_traj[15] += np.array([0.25, 0.0, 0.0]) # Teleportation
+    report_jump = PhysicalContinuityAuditor.audit_trajectory_continuity(jump_traj, dt=dt)
+    assert report_jump.is_continuous is False
+    assert report_jump.max_velocity_m_s > 2.0
+    assert report_jump.rejection_reason is not None
+    assert "exceeds max manipulation limit" in report_jump.rejection_reason
+
+
+def test_grasp_affordance_auditor():
+    """Verifies grasp coherence against Coulomb friction cone and mass."""
+    # 1. Precision pinch holding 150g -> feasible
+    res_pinch_light = GraspAffordanceAuditor.evaluate_grasp(GraspType.PRECISION_PINCH, mass_grams=150.0)
+    assert res_pinch_light.is_physically_feasible is True
+
+    # 2. Precision pinch attempting to hold 4000g (4 kg) -> unfeasible (exceeds human pinch grip friction cone)
+    res_pinch_heavy = GraspAffordanceAuditor.evaluate_grasp(GraspType.PRECISION_PINCH, mass_grams=4000.0)
+    assert res_pinch_heavy.is_physically_feasible is False
+    assert "exceeds maximum payload" in res_pinch_heavy.rejection_reason
+
+    # 3. Palmar cradle holding 4000g (4 kg) -> feasible because palm supports from underneath
+    res_cradle_heavy = GraspAffordanceAuditor.evaluate_grasp(GraspType.PALMAR_CRADLE, mass_grams=4000.0)
+    assert res_cradle_heavy.is_physically_feasible is True
+
+
+def test_physics_token_generation():
+    """Verifies that physics tokens for foundation models are correctly structured."""
+    tokens = PhysicsTokenGenerator.generate_tokens(
+        mass_grams=250.0,
+        grasp_type=GraspType.PRECISION_PINCH,
+        continuity_score=0.95,
+        is_rigid=True
+    )
+    assert tokens.mass_class == MassClass.MEDIUM_TOOL
+    assert tokens.target_stiffness_k_n_m > 0
+    assert len(tokens.feature_vector) == 5
+    d = tokens.to_dict()
+    assert d["mass_class"] == "medium_tool"
+    assert d["grasp_type"] == "precision_pinch"
+    assert d["continuity_score"] == 0.95
+

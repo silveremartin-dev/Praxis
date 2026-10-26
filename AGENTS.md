@@ -129,4 +129,42 @@ To guarantee scientific reproducibility and production dataset scaling, all phys
 * Workpieces and tools are modeled as **rigid solids** by default ($k \to \infty$).
 * When an object or portion thereof is physically compliant or semi-soft (e.g., rubber pads, foam, human skin deformation), its softness must be modeled explicitly via defined compliance parameters (elastic modulus, maximum deformation depth), while strictly preventing unrestrained mesh penetration.
 
+---
+
+## ⚡ 8. Dynamic Limits, Temporal Continuity & Robot Foundation Models (The 3-Method Framework)
+
+Physical demonstrations extracted by Praxis must reflect real-world tabletop manipulation dynamics without kinematic teleportation or unphysical forces.
+
+### 1. Kinematic Velocity, Acceleration & Smoothness Bounds
+Tabletop hand manipulation recorded in fixed camera views operates under strict biological motor control bounds:
+* **Velocity Bound**:
+  $$\max_{t} \|\vec{v}_t\| \le 2.0\text{ m/s} \quad (\approx 7.2\text{ km/h}, \text{nominal fine manipulation } \le 1.2\text{ m/s})$$
+* **Acceleration Bound**:
+  $$\max_{t} \|\vec{a}_t\| \le 15.0\text{ m/s}^2 \quad (\approx 1.5\,g)$$
+* **Minimum-Jerk Biological Smoothness**: Hand trajectory generation follows minimal jerk ($\|\dddot{x}\| \le 100.0\text{ m/s}^3$). High-frequency jitter or discontinuous jumps are flagged and rejected by `PhysicalContinuityAuditor`.
+
+### 2. Inter-Frame Temporal Continuity ($C^1 / C^2$ Smoothness)
+* Consecutive frames $F_t$ and $F_{t+1}$ must exhibit continuous physical transitions:
+  $$\|\vec{x}_{t+1} - \vec{x}_t\| \le v_{\max} \Delta t$$
+* Spatial teleportation, tracking dropouts, or instantaneous scale changes between adjacent frames are strictly forbidden. Any demonstration failing inter-frame continuity is automatically rejected.
+
+### 3. Volumetric Mass Priors & Grasp Affordance Coherence
+* **Volumetric Density Range**: Handheld workpieces typically have effective bulk densities between $0.2\text{ kg/dm}^3$ (hollow/composite) and $7.9\text{ kg/dm}^3$ (solid steel). Common handheld manipulation tools weigh between $50\text{ g}$ and $800\text{ g}$.
+* **Friction Cone & Grasp Compatibility**:
+  - `PRECISION_PINCH` (fingertip index-thumb): Maximum squeeze force $F_N \approx 45\text{ N}$. Under Coulomb friction ($\mu \approx 0.4$), maximum lift payload without support from underneath is strictly $\le 1.5\text{ kg}$. If a heavier mass is detected without palmar support, the sequence is physically inconsistent and rejected.
+  - `PALMAR_CRADLE` (palm cupping from below): Normal reaction directly opposes gravity ($R_z \ge m g$), supporting payloads up to $8.0\text{ kg}$.
+  - `POWER_WRAP`: Full cylindrical grasp with $F_N \le 350\text{ N}$, payload up to $5.0\text{ kg}$.
+
+### 4. The 3-Method Robot Exploitation Architecture
+Praxis feeds physical manipulation data into modern robot imitation learning (LeRobot, ACT, Diffusion Policy, OpenVLA) using three complementary strategies:
+1. **Method 1: Automated Curation Filter Gate (Yield Filter)**:
+   Discards 100% of non-physical demonstrations (speed > 2.0 m/s, penetration > 1.0 mm, unfeasible grasps), ensuring foundation models never learn from non-physical artifacts.
+2. **Method 2: Hybrid Impedance & Effort Action Space**:
+   Dataset action tensors serialize both kinematic targets and impedance compliance:
+   $$a_t = [q_{\text{target}}, \dot{q}_{\text{target}}, F_{\text{grip}}, K_{\text{stiffness}}]$$
+   allowing target robots to perform contact-rich tasks without excessive motor torques or mechanical destruction.
+3. **Method 3: Physics Tokens & VLA Conditioning Embeddings**:
+   Each episode exports compact physical descriptors (`mass_class`, `grasp_type`, `continuity_score`, and feature vector embeddings) into the Parquet dataset, allowing Vision-Language-Action Transformers to condition policies directly on physical dynamics.
+
+
 

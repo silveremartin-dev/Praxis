@@ -1,7 +1,8 @@
 """
-Hugging Face LeRobot Dataset Exporter.
-Serializes verified 3D trajectories, physical contact forces, and kinematic states
-into Apache Parquet / Arrow tables complying with the Hugging Face LeRobot dataset specification.
+Hugging Face LeRobot Dataset Exporter for Praxis (`src/exporter/lerobot_exporter.py`).
+Serializes verified 3D trajectories, physical contact forces, impedance parameters,
+continuity scores, and kinematic states into Apache Parquet / Arrow tables complying
+with the Hugging Face LeRobot dataset specification.
 """
 
 import json
@@ -11,7 +12,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-# Canonical LeRobot Apache Arrow Schema for manipulation digital twins
+# Canonical LeRobot Apache Arrow Schema with Hybrid Impedance and Physics Tokens
 LEROBOT_ARROW_SCHEMA = pa.schema([
     pa.field("episode_index", pa.int64()),
     pa.field("frame_index", pa.int64()),
@@ -20,10 +21,15 @@ LEROBOT_ARROW_SCHEMA = pa.schema([
     pa.field("action", pa.list_(pa.float32())),
     pa.field("physics.contact_force_n", pa.float32()),
     pa.field("physics.sdf_distance_mm", pa.float32()),
+    pa.field("physics.continuity_score", pa.float32()),
+    pa.field("physics.target_stiffness_k", pa.float32()),
+    pa.field("physics.mass_class", pa.string()),
+    pa.field("physics.grasp_type", pa.string()),
     pa.field("feasibility_score", pa.float32()),
     pa.field("task_description", pa.string()),
     pa.field("source_clip", pa.string())
 ])
+
 
 class LeRobotExporter:
     """
@@ -40,12 +46,15 @@ class LeRobotExporter:
         contact_force: Optional[float] = None,
         sdf_min_dist_mm: float = 0.0,
         feasibility_score: float = 100.0,
+        continuity_score: float = 1.0,
+        target_stiffness_k: float = 650.0,
+        mass_class: str = "medium_tool",
+        grasp_type: str = "precision_pinch",
         episode_index: int = 0
     ) -> pa.Table:
         """
-        Synthesizes a standardized LeRobot Arrow Table from metadata and trajectory parameters.
+        Synthesizes a standardized LeRobot Arrow Table from metadata, dynamics, and physics tokens.
         """
-        # Determine number of frames
         extracted = metadata.get("extracted_action_segment", {})
         fps = metadata.get("video_source", {}).get("fps", 30.0)
         duration = extracted.get("duration_seconds", 5.0)
@@ -53,16 +62,13 @@ class LeRobotExporter:
         N = num_frames or int(max(2, round(duration * fps)))
         dt = 1.0 / max(1.0, fps)
         
-        # Action description
         task_desc = extracted.get("action_verb", "manipulate_tool")
         source_clip = metadata.get("video_source", {}).get("clip_file", "unknown_clip.mp4")
         
-        # State & Action dims
         compat = metadata.get("lerobot_export_compatibility", {})
         state_dim = compat.get("state_dim", 14)
         action_dim = compat.get("action_dim", 7)
         
-        # Dynamic forces
         if contact_force is None:
             contacts = metadata.get("hand_contacts", {})
             rh = contacts.get("right_hand", {})
@@ -76,6 +82,10 @@ class LeRobotExporter:
         forces = [float(contact_force)] * N
         sdf_distances = [float(sdf_min_dist_mm)] * N
         feasibility_scores = [float(feasibility_score)] * N
+        continuity_scores = [float(continuity_score)] * N
+        stiffnesses = [float(target_stiffness_k)] * N
+        mass_classes = [str(mass_class)] * N
+        grasp_types = [str(grasp_type)] * N
         
         # Synthetic kinematic states: position + orientation quaternion (7-DoF or 14-DoF)
         states = []
@@ -90,7 +100,6 @@ class LeRobotExporter:
                 0.0, 0.0, 0.0, 1.0
             ]
             if state_dim > 7:
-                # Pad bi-manual state
                 state_vec.extend([0.0] * (state_dim - 7))
             states.append(state_vec)
             
@@ -115,6 +124,10 @@ class LeRobotExporter:
             pa.array(actions, type=pa.list_(pa.float32())),
             pa.array(forces, type=pa.float32()),
             pa.array(sdf_distances, type=pa.float32()),
+            pa.array(continuity_scores, type=pa.float32()),
+            pa.array(stiffnesses, type=pa.float32()),
+            pa.array(mass_classes, type=pa.string()),
+            pa.array(grasp_types, type=pa.string()),
             pa.array(feasibility_scores, type=pa.float32()),
             pa.array(task_descriptions, type=pa.string()),
             pa.array(source_clips, type=pa.string())
