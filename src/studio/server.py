@@ -440,6 +440,7 @@ def get_clip_trajectory(clip_id: str):
             "t": round(prog, 3),
             "phase": info["phase"],
             "lock_pos": info["lock_pos_mm"],
+            "lock_euler": info.get("lock_euler_deg", [0.0, 0.0, 0.0]),
             "needle_visible": info["needle_visible"],
             "tool_tip": info["active_target_mm"] if info["needle_visible"] else None,
             "pinch_pos": info["pinch_pos_mm"],

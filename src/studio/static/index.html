@@ -755,54 +755,50 @@
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x060913);
 
-      camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
-      // Place camera in front of the front face (Z < 0) looking at center
-      camera.position.set(0, 30, -220);
+      camera = new THREE.PerspectiveCamera(42, w / h, 0.5, 1000);
+      // Front-facing camera at +Z looking at scene center (X=Right, Y=Up, Z=Front toward camera)
+      camera.position.set(0, 26, 195);
 
-      // Ultra-Lightweight Demand-Driven WebGL Renderer (0% CPU when idle)
-      renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: "default", precision: "mediump" });
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
       renderer.setSize(w, h);
-      renderer.setPixelRatio(1);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
       container.appendChild(renderer.domElement);
 
       // Instantaneous 1:1 camera manipulation (ZERO lag, no damping inertia)
       controls = new THREE.OrbitControls(camera, renderer.domElement);
-      controls.target.set(0, 10, 0);
+      controls.target.set(0, 18, 0);
       controls.enableDamping = false;
-      controls.maxDistance = 500;
-      controls.minDistance = 20;
+      controls.maxDistance = 450;
+      controls.minDistance = 30;
+      controls.update();
       controls.addEventListener('change', () => { renderer.render(scene, camera); });
 
-      // Fast Lambert Lights
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.78);
       scene.add(ambientLight);
 
-      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.7);
-      dirLight1.position.set(100, 150, 120);
+      const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.85);
+      dirLight1.position.set(90, 160, 180);
       scene.add(dirLight1);
 
-      const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 0.35);
-      dirLight2.position.set(-100, 80, -80);
+      const dirLight2 = new THREE.DirectionalLight(0x38bdf8, 0.40);
+      dirLight2.position.set(-110, 80, -120);
       scene.add(dirLight2);
 
-      const grid = new THREE.GridHelper(300, 30, 0x1e293b, 0x0f172a);
-      grid.position.y = -50;
+      const grid = new THREE.GridHelper(280, 28, 0x1e293b, 0x0f172a);
+      grid.position.y = -32;
       scene.add(grid);
 
       sceneGroup = new THREE.Group();
-      sceneGroup.scale.x = -1; // Invert horizontal X so Left Hand renders on screen LEFT and Right Hand on screen RIGHT (matching video)
       scene.add(sceneGroup);
 
       skeletonGroup = new THREE.Group();
-      skeletonGroup.scale.x = -1;
       scene.add(skeletonGroup);
-      buildSkeletonMeshes();
 
       contactMarkersGroup = new THREE.Group();
-      contactMarkersGroup.scale.x = -1;
       scene.add(contactMarkersGroup);
 
-      // Demand-driven rendering: renders ONLY when camera moves, video advances, or sim plays
+      buildArticulatedHandsAndSkeleton();
+
       function animate() {
         requestAnimationFrame(animate);
         if (needsRender || isSimPlaying) {
@@ -813,61 +809,225 @@
       animate();
     }
 
-    const BONE_CONNECTIONS = [
-      // Thumb: Wrist(0) -> CMC(17) -> MCP(18) -> IP(19) -> TIP(20)
-      [0, 17], [17, 18], [18, 19], [19, 20],
-      // Index: Wrist(0) -> MCP(1) -> PIP(2) -> DIP(3) -> TIP(4)
-      [0, 1], [1, 2], [2, 3], [3, 4],
-      // Middle: Wrist(0) -> MCP(5) -> PIP(6) -> DIP(7) -> TIP(8)
-      [0, 5], [5, 6], [6, 7], [7, 8],
-      // Ring: Wrist(0) -> MCP(9) -> PIP(10) -> DIP(11) -> TIP(12)
-      [0, 9], [9, 10], [10, 11], [11, 12],
-      // Pinky: Wrist(0) -> MCP(13) -> PIP(14) -> DIP(15) -> TIP(16)
-      [0, 13], [13, 14], [14, 15], [15, 16],
-      // Transverse Knuckle Arch
-      [1, 5], [5, 9], [9, 13]
+    // Coordinate mapping: CAD (X=Right, Y=Front, Z=Up) -> Three.js (X=Right, Y=Up, Z=Front)
+    function cadToThree(pt, outVec) {
+      if (outVec) return outVec.set(pt[0], pt[2], pt[1]);
+      return new THREE.Vector3(pt[0], pt[2], pt[1]);
+    }
+
+    const _upAxis = new THREE.Vector3(0, 1, 0);
+    const _tmpDir = new THREE.Vector3();
+    const _tmpMid = new THREE.Vector3();
+
+    function orientCylinderBetween(mesh, pA, pB, radiusScale) {
+      _tmpDir.subVectors(pB, pA);
+      const len = _tmpDir.length();
+      if (len < 0.001) {
+        mesh.visible = false;
+        return;
+      }
+      mesh.visible = true;
+      _tmpMid.addVectors(pA, pB).multiplyScalar(0.5);
+      mesh.position.copy(_tmpMid);
+      mesh.quaternion.setFromUnitVectors(_upAxis, _tmpDir.divideScalar(len));
+      const r = radiusScale || 1.0;
+      mesh.scale.set(r, len, r);
+    }
+
+    // Complete 25-Node Hand Topology:
+    // 0: Wrist, 1..4: Index(MCP..TIP), 5..8: Middle, 9..12: Ring, 13..16: Pinky, 17..20: Thumb(CMC..TIP)
+    // Plus 4 derived Carpal-Metacarpal (CMC) arch nodes: 21: CMC_Index, 22: CMC_Middle, 23: CMC_Ring, 24: CMC_Pinky
+    // Plus 1 derived Forearm cuff node: 25
+    const HAND_SEGMENTS_SPEC = [
+      // Forearm cuff to Radiocarpal Wrist
+      { a: 25, b: 0, rSkin: 11.5, rBone: 4.2, type: 'carpus' },
+      // Carpal Arch (Radiocarpal 0 to 5 CMC bases)
+      { a: 0, b: 17, rSkin: 5.5, rBone: 2.1, type: 'carpus' },
+      { a: 0, b: 21, rSkin: 5.5, rBone: 2.1, type: 'carpus' },
+      { a: 0, b: 22, rSkin: 5.6, rBone: 2.2, type: 'carpus' },
+      { a: 0, b: 23, rSkin: 5.4, rBone: 2.1, type: 'carpus' },
+      { a: 0, b: 24, rSkin: 5.2, rBone: 2.0, type: 'carpus' },
+      // Transverse Carpal Tunnel Arch
+      { a: 17, b: 21, rSkin: 5.0, rBone: 1.8, type: 'carpus' },
+      { a: 21, b: 22, rSkin: 5.0, rBone: 1.8, type: 'carpus' },
+      { a: 22, b: 23, rSkin: 5.0, rBone: 1.8, type: 'carpus' },
+      { a: 23, b: 24, rSkin: 4.8, rBone: 1.8, type: 'carpus' },
+      // 5 Articulated Metacarpals (CMC to MCP Knuckles)
+      { a: 17, b: 18, rSkin: 6.4, rBone: 2.4, type: 'metacarpal' }, // 1st Metacarpal + Thenar
+      { a: 21, b: 1,  rSkin: 5.4, rBone: 2.2, type: 'metacarpal' }, // 2nd Metacarpal
+      { a: 22, b: 5,  rSkin: 5.6, rBone: 2.3, type: 'metacarpal' }, // 3rd Metacarpal
+      { a: 23, b: 9,  rSkin: 5.3, rBone: 2.1, type: 'metacarpal' }, // 4th Metacarpal
+      { a: 24, b: 13, rSkin: 4.9, rBone: 1.9, type: 'metacarpal' }, // 5th Metacarpal
+      // Distal Transverse Metacarpal Arch (Knuckle Bridge)
+      { a: 1,  b: 5,  rSkin: 5.0, rBone: 1.7, type: 'metacarpal' },
+      { a: 5,  b: 9,  rSkin: 5.0, rBone: 1.7, type: 'metacarpal' },
+      { a: 9,  b: 13, rSkin: 4.8, rBone: 1.6, type: 'metacarpal' },
+      // Muscular Thenar Web (1st Metacarpal to 2nd Metacarpal)
+      { a: 18, b: 21, rSkin: 5.8, rBone: 0.0, type: 'web' },
+      // Thumb Phalanges (Proximal & Distal)
+      { a: 18, b: 19, rSkin: 5.5, rBone: 2.2, type: 'phalanx' },
+      { a: 19, b: 20, rSkin: 4.7, rBone: 1.9, type: 'tip' },
+      // Index Phalanges (Proximal, Middle, Distal)
+      { a: 1,  b: 2,  rSkin: 5.1, rBone: 2.1, type: 'phalanx' },
+      { a: 2,  b: 3,  rSkin: 4.5, rBone: 1.8, type: 'phalanx' },
+      { a: 3,  b: 4,  rSkin: 3.9, rBone: 1.5, type: 'tip' },
+      // Middle Phalanges
+      { a: 5,  b: 6,  rSkin: 5.3, rBone: 2.2, type: 'phalanx' },
+      { a: 6,  b: 7,  rSkin: 4.7, rBone: 1.9, type: 'phalanx' },
+      { a: 7,  b: 8,  rSkin: 4.0, rBone: 1.6, type: 'tip' },
+      // Ring Phalanges
+      { a: 9,  b: 10, rSkin: 5.0, rBone: 2.0, type: 'phalanx' },
+      { a: 10, b: 11, rSkin: 4.4, rBone: 1.8, type: 'phalanx' },
+      { a: 11, b: 12, rSkin: 3.8, rBone: 1.5, type: 'tip' },
+      // Pinky Phalanges
+      { a: 13, b: 14, rSkin: 4.4, rBone: 1.8, type: 'phalanx' },
+      { a: 14, b: 15, rSkin: 3.9, rBone: 1.5, type: 'phalanx' },
+      { a: 15, b: 16, rSkin: 3.4, rBone: 1.3, type: 'tip' }
     ];
 
-    let lhJointMeshes = [];
-    let rhJointMeshes = [];
-    let lhBoneLines = null;
-    let rhBoneLines = null;
+    let lhHandRig = null;
+    let rhHandRig = null;
+    let dynamicWorkpieceGroup = null;
+    let dynamicToolGroup = null;
 
-    function buildSkeletonMeshes() {
-      skeletonGroup.clear();
-      lhJointMeshes = [];
-      rhJointMeshes = [];
+    function createSingleHandRig(isLeft) {
+      const skinGroup = new THREE.Group();
+      const boneGroup = new THREE.Group();
+      sceneGroup.add(skinGroup);
+      skeletonGroup.add(boneGroup);
 
-      const jointGeo = new THREE.SphereGeometry(1.6, 8, 8);
-      const lhJointMat = new THREE.MeshPhongMaterial({ color: 0x34d399, specular: 0xa7f3d0, shininess: 40 });
-      const rhJointMat = new THREE.MeshPhongMaterial({ color: 0x38bdf8, specular: 0xbae6fd, shininess: 40 });
+      const unitCylGeo = new THREE.CylinderGeometry(1, 0.92, 1, 14, 1);
+      const unitSphereGeo = new THREE.SphereGeometry(1, 12, 10);
 
-      for (let i = 0; i < 21; i++) {
-        const m = new THREE.Mesh(jointGeo, lhJointMat);
-        skeletonGroup.add(m);
-        lhJointMeshes.push(m);
+      const skinMat = new THREE.MeshPhongMaterial({
+        color: isLeft ? 0xdca082 : 0xe2a88b,
+        specular: 0x475569,
+        shininess: 18,
+        transparent: showSkeleton,
+        opacity: showSkeleton ? 0.42 : 1.0,
+        depthWrite: !showSkeleton
+      });
+      const tipMat = new THREE.MeshPhongMaterial({
+        color: 0xebb49a,
+        specular: 0x64748b,
+        shininess: 22,
+        transparent: showSkeleton,
+        opacity: showSkeleton ? 0.48 : 1.0,
+        depthWrite: !showSkeleton
+      });
+      const boneMat = new THREE.MeshPhongMaterial({
+        color: 0xf8fafc,
+        specular: 0xe2e8f0,
+        shininess: 50
+      });
+      const jointMat = new THREE.MeshPhongMaterial({
+        color: isLeft ? 0x10b981 : 0x0ea5e9,
+        specular: 0xffffff,
+        shininess: 70
+      });
+
+      const skinSegments = [];
+      const boneSegments = [];
+      HAND_SEGMENTS_SPEC.forEach(spec => {
+        const sMesh = new THREE.Mesh(unitCylGeo, spec.type === 'tip' ? tipMat : skinMat);
+        skinGroup.add(sMesh);
+        skinSegments.push({ mesh: sMesh, spec });
+
+        if (spec.rBone > 0) {
+          const bMesh = new THREE.Mesh(unitCylGeo, boneMat);
+          boneGroup.add(bMesh);
+          boneSegments.push({ mesh: bMesh, spec });
+        }
+      });
+
+      const skinJoints = [];
+      const boneJoints = [];
+      for (let i = 0; i < 26; i++) {
+        const isTip = (i === 4 || i === 8 || i === 12 || i === 16 || i === 20);
+        const rS = i === 25 ? 11.0 : (i === 0 ? 7.5 : (i >= 21 ? 5.2 : (isTip ? 3.8 : 4.8)));
+        const rB = i === 25 ? 4.0 : (i === 0 ? 3.2 : (i >= 21 ? 2.2 : (isTip ? 1.8 : 2.5)));
+
+        const sj = new THREE.Mesh(unitSphereGeo, isTip ? tipMat : skinMat);
+        sj.scale.set(rS, rS, rS);
+        skinGroup.add(sj);
+        skinJoints.push(sj);
+
+        const bj = new THREE.Mesh(unitSphereGeo, jointMat);
+        bj.scale.set(rB, rB, rB);
+        boneGroup.add(bj);
+        boneJoints.push(bj);
       }
+
+      const nodes = [];
+      for (let i = 0; i < 26; i++) nodes.push(new THREE.Vector3());
+
+      return { isLeft, skinGroup, boneGroup, skinMat, tipMat, boneMat, jointMat, skinSegments, boneSegments, skinJoints, boneJoints, nodes };
+    }
+
+    function buildArticulatedHandsAndSkeleton() {
+      lhHandRig = createSingleHandRig(true);
+      rhHandRig = createSingleHandRig(false);
+    }
+
+    function updateHandRigAppearance(rig) {
+      if (!rig) return;
+      const isRobot = currentRobot !== 'human';
+      rig.skinMat.color.setHex(isRobot ? (rig.isLeft ? 0x334155 : 0x475569) : (rig.isLeft ? 0xdca082 : 0xe2a88b));
+      rig.tipMat.color.setHex(isRobot ? 0x06b6d4 : 0xebb49a);
+      rig.skinMat.shininess = isRobot ? 65 : 18;
+      rig.skinMat.transparent = showSkeleton;
+      rig.skinMat.opacity = showSkeleton ? 0.42 : 1.0;
+      rig.skinMat.depthWrite = !showSkeleton;
+      rig.tipMat.transparent = showSkeleton;
+      rig.tipMat.opacity = showSkeleton ? 0.48 : 1.0;
+      rig.tipMat.depthWrite = !showSkeleton;
+      rig.skinMat.wireframe = isWireframe;
+      rig.tipMat.wireframe = isWireframe;
+      rig.boneGroup.visible = showSkeleton;
+    }
+
+    function updateSingleHandRigKinematics(rig, j0, j1, alpha) {
+      const hasHand = j0 && j1 && j0.length === 21 && j1.length === 21;
+      rig.skinGroup.visible = hasHand;
+      rig.boneGroup.visible = hasHand && showSkeleton;
+      if (!hasHand) return;
+
+      const nodes = rig.nodes;
       for (let i = 0; i < 21; i++) {
-        const m = new THREE.Mesh(jointGeo, rhJointMat);
-        skeletonGroup.add(m);
-        rhJointMeshes.push(m);
+        const p0 = j0[i];
+        const p1 = j1[i];
+        const x = p0[0] + (p1[0] - p0[0]) * alpha;
+        const y = p0[1] + (p1[1] - p0[1]) * alpha;
+        const z = p0[2] + (p1[2] - p0[2]) * alpha;
+        // CAD (x, y, z) -> Three.js (x, z, y)
+        nodes[i].set(x, z, y);
       }
 
-      const numBones = BONE_CONNECTIONS.length;
-      const lhLinePos = new Float32Array(numBones * 2 * 3);
-      const rhLinePos = new Float32Array(numBones * 2 * 3);
+      // Compute the 4 Carpal-Metacarpal (CMC) arch joints (nodes 21..24) between Wrist (0) and MCP knuckles (1, 5, 9, 13)
+      const wrist = nodes[0];
+      const mcpIndices = [1, 5, 9, 13];
+      for (let k = 0; k < 4; k++) {
+        const mcp = nodes[mcpIndices[k]];
+        nodes[21 + k].lerpVectors(wrist, mcp, 0.30);
+      }
 
-      const lhLineGeo = new THREE.BufferGeometry();
-      lhLineGeo.setAttribute('position', new THREE.BufferAttribute(lhLinePos, 3));
-      const lhLineMat = new THREE.LineBasicMaterial({ color: 0x10b981, linewidth: 2 });
-      lhBoneLines = new THREE.LineSegments(lhLineGeo, lhLineMat);
-      skeletonGroup.add(lhBoneLines);
+      // Compute Forearm cuff node (25) extending proximally from Wrist (0) opposite to middle metacarpal
+      _tmpDir.subVectors(wrist, nodes[5]).normalize();
+      nodes[25].copy(wrist).addScaledVector(_tmpDir, 24.0);
 
-      const rhLineGeo = new THREE.BufferGeometry();
-      rhLineGeo.setAttribute('position', new THREE.BufferAttribute(rhLinePos, 3));
-      const rhLineMat = new THREE.LineBasicMaterial({ color: 0x0284c7, linewidth: 2 });
-      rhBoneLines = new THREE.LineSegments(rhLineGeo, rhLineMat);
-      skeletonGroup.add(rhBoneLines);
+      // Position all 26 joint condyle spheres
+      for (let i = 0; i < 26; i++) {
+        rig.skinJoints[i].position.copy(nodes[i]);
+        rig.boneJoints[i].position.copy(nodes[i]);
+      }
+
+      // Orient and scale all nested cylindrical segments
+      rig.skinSegments.forEach(item => {
+        orientCylinderBetween(item.mesh, nodes[item.spec.a], nodes[item.spec.b], item.spec.rSkin);
+      });
+      rig.boneSegments.forEach(item => {
+        orientCylinderBetween(item.mesh, nodes[item.spec.a], nodes[item.spec.b], item.spec.rBone);
+      });
     }
 
     function onWindowResize() {
@@ -986,120 +1146,224 @@
       });
     }
 
-    // ---------------- FAST GEOMETRY CACHE (0ms SWITCHING) ----------------
+    // ---------------- DYNAMIC MULTI-PART WORKPIECE & TOOL BUILDER ----------------
     function load3DSceneCached(clipId, objUrl) {
-      if (!objUrl) return;
-
-      while (sceneGroup.children.length > 0) {
-        sceneGroup.remove(sceneGroup.children[0]);
+      if (dynamicWorkpieceGroup) {
+        sceneGroup.remove(dynamicWorkpieceGroup);
+        dynamicWorkpieceGroup = null;
+      }
+      if (dynamicToolGroup) {
+        sceneGroup.remove(dynamicToolGroup);
+        dynamicToolGroup = null;
       }
       contactMarkersGroup.clear();
-      toolMesh = null;
-      workpieceMesh = null;
 
-      if (meshCache[clipId]) {
-        const cachedObj = meshCache[clipId].clone();
-        const box = new THREE.Box3().setFromObject(cachedObj);
-        const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const fov = (camera.fov || 45) * (Math.PI / 180);
-        const cameraDistance = Math.max(160, Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5);
-        camera.position.set(0, maxDim * 0.2, -cameraDistance);
-        controls.target.set(0, 0, 0);
-        controls.update();
+      dynamicWorkpieceGroup = new THREE.Group();
+      dynamicToolGroup = new THREE.Group();
+      sceneGroup.add(dynamicWorkpieceGroup);
+      sceneGroup.add(dynamicToolGroup);
 
-        applyEmbodimentMaterialsAndMount(cachedObj);
-        return;
+      if (clipId === '07_lpl_masterlock') {
+        buildContouredMasterLockRig(dynamicWorkpieceGroup, dynamicToolGroup);
+        camera.position.set(0, 26, 195);
+        controls.target.set(0, 18, 0);
+      } else if (clipId === '01_lpl_dropkey') {
+        buildDropKeyRig(dynamicWorkpieceGroup, dynamicToolGroup);
+        camera.position.set(0, 35, 220);
+        controls.target.set(0, 25, 0);
+      } else if (clipId === '05_watch_zodiac') {
+        buildWatchZodiacRig(dynamicWorkpieceGroup, dynamicToolGroup);
+        camera.position.set(0, 38, 175);
+        controls.target.set(0, 20, 0);
+      } else if (clipId === '06_singer_sewingmachine') {
+        buildSingerRig(dynamicWorkpieceGroup, dynamicToolGroup);
+        camera.position.set(0, 85, 260);
+        controls.target.set(0, 80, 0);
+      } else {
+        buildContouredMasterLockRig(dynamicWorkpieceGroup, dynamicToolGroup);
+        camera.position.set(0, 26, 195);
+        controls.target.set(0, 18, 0);
       }
+      controls.update();
 
-      const loader = new THREE.OBJLoader();
-      loader.load(
-        objUrl,
-        (obj) => {
-          // Align CAD Z-up coordinate system to Three.js Y-up (upright facing camera)
-          obj.rotation.x = -Math.PI / 2;
-          const box = new THREE.Box3().setFromObject(obj);
-          const center = box.getCenter(new THREE.Vector3());
-          const size = box.getSize(new THREE.Vector3());
-          obj.position.sub(center);
-
-          // Auto-frame camera based on actual bounding dimensions
-          const maxDim = Math.max(size.x, size.y, size.z);
-          const fov = (camera.fov || 45) * (Math.PI / 180);
-          const cameraDistance = Math.max(160, Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5);
-          camera.position.set(0, maxDim * 0.2, -cameraDistance);
-          controls.target.set(0, 0, 0);
-          controls.update();
-
-          meshCache[clipId] = obj;
-          applyEmbodimentMaterialsAndMount(obj.clone());
-        },
-        undefined,
-        (err) => console.error("Error loading OBJ:", err)
-      );
+      updateHandRigAppearance(lhHandRig);
+      updateHandRigAppearance(rhHandRig);
+      updateProgress(videoPlayer.duration ? (videoPlayer.currentTime / videoPlayer.duration) : 0.0);
     }
 
-    function applyEmbodimentMaterialsAndMount(obj) {
-      const isRobot = currentRobot !== 'human';
+    function buildContouredMasterLockRig(wpGroup, tlGroup) {
+      // Materials matching the real Master Lock No. 3 in the video
+      const steelWingMat = new THREE.MeshPhongMaterial({ color: 0x90a4ae, specular: 0xcfd8dc, shininess: 55, wireframe: isWireframe });
+      const steelShoulderMat = new THREE.MeshPhongMaterial({ color: 0xb0bec5, specular: 0xeceff1, shininess: 65, wireframe: isWireframe });
+      const steelCenterMat = new THREE.MeshPhongMaterial({ color: 0xd5dde2, specular: 0xffffff, shininess: 80, wireframe: isWireframe });
+      const ribMat = new THREE.MeshPhongMaterial({ color: 0xeceff1, specular: 0xffffff, shininess: 85, wireframe: isWireframe });
+      const redWingMat = new THREE.MeshPhongMaterial({ color: 0xb71c1c, specular: 0xef5350, shininess: 35, wireframe: isWireframe });
+      const redCenterMat = new THREE.MeshPhongMaterial({ color: 0xd32f2f, specular: 0xff8a80, shininess: 45, wireframe: isWireframe });
+      const shackleMat = new THREE.MeshPhongMaterial({ color: 0xf1f5f9, specular: 0xffffff, shininess: 95, wireframe: isWireframe });
+      const darkHoleMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+      const brassKeyMat = new THREE.MeshPhongMaterial({ color: 0xd4af37, specular: 0xfef08a, shininess: 75, wireframe: isWireframe });
 
-      // Fast Phong Materials (10x faster than PBR StandardMaterial)
-      const handMat = new THREE.MeshPhongMaterial({
-        color: isRobot ? 0x38bdf8 : 0xdfb498,
-        specular: isRobot ? 0x22d3ee : 0x475569,
-        shininess: isRobot ? 60 : 15,
-        wireframe: isWireframe,
-        side: THREE.DoubleSide
+      const W = 38.0, H = 32.0, T_center = 20.0, T_shoulder = 16.8, T_wing = 13.6;
+      const W_center = 20.9, W_shoulder = 28.9;
+      const coreH = H - 7.5, coreY = 7.5 + coreH / 2.0;
+
+      // 1. Contoured Red 'Master' Vinyl Bumper (Y in [0, 7.5])
+      const bmpWing = new THREE.Mesh(new THREE.BoxGeometry(W + 0.6, 7.5, T_wing + 0.6), redWingMat);
+      bmpWing.position.set(0, 3.75, 0);
+      wpGroup.add(bmpWing);
+
+      const bmpShoulder = new THREE.Mesh(new THREE.BoxGeometry(W_shoulder + 0.6, 7.5, T_shoulder + 0.6), redCenterMat);
+      bmpShoulder.position.set(0, 3.75, 0);
+      wpGroup.add(bmpShoulder);
+
+      const bmpCenter = new THREE.Mesh(new THREE.BoxGeometry(W_center + 0.8, 7.5, T_center + 0.8), redCenterMat);
+      bmpCenter.position.set(0, 3.75, 0);
+      wpGroup.add(bmpCenter);
+
+      // 2. Contoured Laminated Steel Body (Proud Bulged Central Face + Stepped Shoulders + Narrower Rivet Wings)
+      const bodyWing = new THREE.Mesh(new THREE.BoxGeometry(W, coreH, T_wing), steelWingMat);
+      bodyWing.position.set(0, coreY, 0);
+      wpGroup.add(bodyWing);
+
+      const bodyShoulder = new THREE.Mesh(new THREE.BoxGeometry(W_shoulder, coreH, T_shoulder), steelShoulderMat);
+      bodyShoulder.position.set(0, coreY, 0);
+      wpGroup.add(bodyShoulder);
+
+      const bodyCenter = new THREE.Mesh(new THREE.BoxGeometry(W_center, coreH, T_center), steelCenterMat);
+      bodyCenter.position.set(0, coreY, 0);
+      wpGroup.add(bodyCenter);
+
+      // Horizontal laminated plate ribs
+      for (let i = 0; i < 6; i++) {
+        const yRib = 9.5 + i * 3.8;
+        const ribC = new THREE.Mesh(new THREE.BoxGeometry(W_center + 0.3, 1.1, T_center + 0.3), ribMat);
+        ribC.position.set(0, yRib, 0);
+        wpGroup.add(ribC);
+      }
+
+      // 3. Four Corner Rivet Heads on Top Plate
+      const rivetGeo = new THREE.CylinderGeometry(1.5, 1.5, 1.2, 12);
+      [-W * 0.40, W * 0.40].forEach(rx => {
+        [-T_wing * 0.32, T_wing * 0.32].forEach(rz => {
+          const rv = new THREE.Mesh(rivetGeo, steelWingMat);
+          rv.position.set(rx, H + 0.4, rz);
+          wpGroup.add(rv);
+        });
       });
 
-      const lockMat = new THREE.MeshPhongMaterial({
-        color: 0xd4af37,
-        specular: 0xfef08a,
-        shininess: 70,
-        wireframe: isWireframe,
-        side: THREE.DoubleSide
-      });
+      // 4. Open Shackle Cavity on Top Right (X = +10.45mm)
+      const holeX = W * 0.275;
+      const holeMesh = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 1.4, 16), darkHoleMat);
+      holeMesh.position.set(holeX, H + 0.2, 0);
+      wpGroup.add(holeMesh);
 
-      const toolMat = new THREE.MeshPhongMaterial({
-        color: 0x94a3b8,
-        specular: 0xffffff,
-        shininess: 80,
-        wireframe: isWireframe,
-        side: THREE.DoubleSide
-      });
+      // 5. Hardened Steel Shackle (7mm diameter, swung 180 deg open to the left)
+      const shackleR = 3.4;
+      const pivotX = -holeX;
+      const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(shackleR, shackleR, 22.0, 16), shackleMat);
+      rightLeg.position.set(pivotX, H + 10.0, 0);
+      wpGroup.add(rightLeg);
 
-      obj.traverse((child) => {
-        if (child.isMesh) {
-          const name = (child.name || '').toLowerCase();
-          if (name.includes('lock') || name.includes('workpiece') || name.includes('gear') || name.includes('faceplate')) {
-            child.material = lockMat;
-            workpieceMesh = child;
-          } else if (name.includes('needle') || name.includes('tweezer') || name.includes('tool') || name.includes('key')) {
-            child.material = toolMat;
-            toolMesh = child;
-          } else {
-            child.material = handMat;
-            child.material.transparent = showSkeleton;
-            child.material.opacity = showSkeleton ? 0.35 : 0.99;
-          }
-        }
-      });
+      const archRadius = holeX;
+      const archCenterX = pivotX - archRadius;
+      const torusGeo = new THREE.TorusGeometry(archRadius, shackleR, 14, 24, Math.PI);
+      const archMesh = new THREE.Mesh(torusGeo, shackleMat);
+      archMesh.position.set(archCenterX, H + 21.0, 0);
+      wpGroup.add(archMesh);
 
-      sceneGroup.add(obj);
-      controls.target.set(0, 10, 0);
-      requestRender();
+      const toeX = pivotX - 2.0 * archRadius;
+      const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(shackleR, shackleR * 0.92, 13.0, 16), shackleMat);
+      leftLeg.position.set(toeX, H + 14.5, 0);
+      wpGroup.add(leftLeg);
+
+      // 6. Single Legitimate Brass Key Inserted Vertically into Bottom Keyway (No fake horizontal key!)
+      const keyBow = new THREE.Mesh(new THREE.CylinderGeometry(7.2, 7.2, 2.0, 20), brassKeyMat);
+      keyBow.rotation.x = Math.PI / 2;
+      keyBow.position.set(3.0, -7.0, 0.0);
+      wpGroup.add(keyBow);
+
+      const keyHole = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 2.2, 12), darkHoleMat);
+      keyHole.rotation.x = Math.PI / 2;
+      keyHole.position.set(3.0, -9.5, 0.0);
+      wpGroup.add(keyHole);
+
+      const keyNeck = new THREE.Mesh(new THREE.BoxGeometry(5.0, 5.5, 2.0), brassKeyMat);
+      keyNeck.position.set(3.0, -2.0, 0.0);
+      wpGroup.add(keyNeck);
+
+      // 7. L-Shaped Bypass Decoder Needle in Tool Group
+      const needleMat = new THREE.MeshPhongMaterial({ color: 0x38bdf8, specular: 0xffffff, shininess: 90 });
+      const handleMat = new THREE.MeshPhongMaterial({ color: 0xe2e8f0, specular: 0xffffff, shininess: 90 });
+      const unitCyl = new THREE.CylinderGeometry(1, 1, 1, 12);
+      const shaftMesh = new THREE.Mesh(unitCyl, needleMat);
+      const handleMesh = new THREE.Mesh(unitCyl, handleMat);
+      tlGroup.add(shaftMesh);
+      tlGroup.add(handleMesh);
+      tlGroup.userData = { type: 'l_probe', shaftMesh, handleMesh };
+    }
+
+    function buildDropKeyRig(wpGroup, tlGroup) {
+      const steelMat = new THREE.MeshPhongMaterial({ color: 0xcbd5e1, specular: 0xffffff, shininess: 85 });
+      const brassMat = new THREE.MeshPhongMaterial({ color: 0xd4af37, specular: 0xfef08a, shininess: 70 });
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(4.0, 4.0, 95.0, 20), steelMat);
+      stem.rotation.z = Math.PI / 2;
+      wpGroup.add(stem);
+      const collar = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 6.5, 10.0, 20), brassMat);
+      collar.rotation.z = Math.PI / 2;
+      collar.position.set(20, 0, 0);
+      wpGroup.add(collar);
+      const unitCyl = new THREE.CylinderGeometry(1, 1, 1, 16);
+      const linkMesh = new THREE.Mesh(unitCyl, steelMat);
+      tlGroup.add(linkMesh);
+      tlGroup.userData = { type: 'drop_link', linkMesh };
+    }
+
+    function buildWatchZodiacRig(wpGroup, tlGroup) {
+      const holderMat = new THREE.MeshPhongMaterial({ color: 0x94a3b8, specular: 0xe2e8f0, shininess: 60 });
+      const brassMat = new THREE.MeshPhongMaterial({ color: 0xeab308, specular: 0xfef08a, shininess: 80 });
+      const rubyMat = new THREE.MeshPhongMaterial({ color: 0xe11d48, specular: 0xffcdd2, shininess: 90 });
+      const holder = new THREE.Mesh(new THREE.CylinderGeometry(28.0, 28.0, 18.0, 28), holderMat);
+      holder.position.set(0, -10.0, 0);
+      wpGroup.add(holder);
+      const plate = new THREE.Mesh(new THREE.CylinderGeometry(15.0, 15.0, 2.2, 24), brassMat);
+      plate.position.set(0, 0, 0);
+      wpGroup.add(plate);
+      const gear = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 0.8, 20), rubyMat);
+      gear.position.set(0, 1.5, 0);
+      wpGroup.add(gear);
+
+      const tweezerMat = new THREE.MeshPhongMaterial({ color: 0x38bdf8, specular: 0xffffff, shininess: 90 });
+      const bladeL = new THREE.Mesh(new THREE.BoxGeometry(1.0, 28.0, 0.8), tweezerMat);
+      bladeL.position.set(-1.2, 14.0, 0);
+      bladeL.rotation.z = -0.08;
+      const bladeR = new THREE.Mesh(new THREE.BoxGeometry(1.0, 28.0, 0.8), tweezerMat);
+      bladeR.position.set(1.2, 14.0, 0);
+      bladeR.rotation.z = 0.08;
+      tlGroup.add(bladeL);
+      tlGroup.add(bladeR);
+      tlGroup.userData = { type: 'tweezer' };
+    }
+
+    function buildSingerRig(wpGroup, tlGroup) {
+      const castIronMat = new THREE.MeshPhongMaterial({ color: 0x475569, specular: 0x94a3b8, shininess: 50 });
+      const goldMat = new THREE.MeshPhongMaterial({ color: 0xd4af37, specular: 0xfef08a, shininess: 75 });
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(4.5, 110.0, 58.0), castIronMat);
+      wpGroup.add(plate);
+      const ridge = new THREE.Mesh(new THREE.BoxGeometry(6.0, 90.0, 16.0), goldMat);
+      wpGroup.add(ridge);
     }
 
     function updateContactMarkers(contacts) {
       contactMarkersGroup.clear();
       if (!showContacts || !contacts || contacts.length === 0) return;
 
-      const markerGeo = new THREE.SphereGeometry(1.6, 8, 8);
+      const markerGeo = new THREE.SphereGeometry(1.7, 10, 10);
       const markerMat = new THREE.MeshBasicMaterial({ color: 0x10b981 });
 
       contacts.forEach(pt => {
         const m = new THREE.Mesh(markerGeo, markerMat);
-        // Convert CAD (X, Y, Z) to Three.js (X, Z, -Y)
-        m.position.set(pt[0], pt[2], -pt[1]);
+        // CAD (X, Y, Z) -> Three.js (X, Z, Y)
+        m.position.set(pt[0], pt[2], pt[1]);
         contactMarkersGroup.add(m);
       });
     }
@@ -1113,7 +1377,9 @@
         const opt = e.target.options[e.target.selectedIndex].text;
         document.getElementById('statusBarEmbodiment').textContent = opt.split('(')[0];
         updateRobotPanel(currentRobot);
-        if (currentClip) load3DSceneCached(currentClip.id, currentClip.obj_url);
+        updateHandRigAppearance(lhHandRig);
+        updateHandRigAppearance(rhHandRig);
+        requestRender();
       });
 
       btnPlayPause.addEventListener('click', togglePlay);
@@ -1121,7 +1387,6 @@
       videoPlayer.addEventListener('play', () => { playIcon.textContent = 'Pause'; });
       videoPlayer.addEventListener('pause', () => { playIcon.textContent = 'Play'; });
 
-      // Optimized timeupdate: only touches DOM when necessary
       videoPlayer.addEventListener('timeupdate', () => {
         if (!videoPlayer.duration) return;
         const cur = videoPlayer.currentTime;
@@ -1175,20 +1440,17 @@
 
       // Viewport buttons
       document.getElementById('btnCameraReset').addEventListener('click', () => {
-        camera.position.set(0, 30, -220);
-        controls.target.set(0, 10, 0);
+        camera.position.set(0, 26, 195);
+        controls.target.set(0, 18, 0);
+        controls.update();
         requestRender();
       });
 
       document.getElementById('btnToggleSkeleton').addEventListener('click', (e) => {
         showSkeleton = !showSkeleton;
         if (skeletonGroup) skeletonGroup.visible = showSkeleton;
-        sceneGroup.traverse((child) => {
-          if (child.isMesh && child !== workpieceMesh && child !== toolMesh) {
-            child.material.transparent = showSkeleton;
-            child.material.opacity = showSkeleton ? 0.35 : 0.99;
-          }
-        });
+        updateHandRigAppearance(lhHandRig);
+        updateHandRigAppearance(rhHandRig);
         e.target.textContent = showSkeleton ? '🦴 Skeleton [ON]' : '🦴 Skeleton [OFF]';
         requestRender();
       });
@@ -1196,7 +1458,7 @@
       document.getElementById('btnToggleWireframe').addEventListener('click', () => {
         isWireframe = !isWireframe;
         sceneGroup.traverse(child => {
-          if (child.isMesh) child.material.wireframe = isWireframe;
+          if (child.isMesh && child.material) child.material.wireframe = isWireframe;
         });
         requestRender();
       });
@@ -1260,7 +1522,12 @@
       return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(2, '0')}`;
     }
 
-    // Zero-lag updateProgress with dirty check
+    const _pTipVec = new THREE.Vector3();
+    const _pPinchVec = new THREE.Vector3();
+    const _pElbowVec = new THREE.Vector3();
+    const _pEndVec = new THREE.Vector3();
+
+    // Real-time 60 FPS update of all articulated hand bones, skin cylinders, contoured workpiece & tool
     function updateProgress(progress) {
       const t = progress * (currentClip ? currentClip.duration_sec : 10.0);
 
@@ -1276,7 +1543,6 @@
         }
       }
 
-      // Only touch DOM if the active phase actually changed
       if (foundIdx !== activePhaseIdx) {
         if (activePhaseIdx >= 0) {
           const prev = document.getElementById(`phase-card-${activePhaseIdx}`);
@@ -1290,7 +1556,6 @@
         activePhaseIdx = foundIdx;
       }
 
-      // Continuous 3D Kinematics from Video Demonstration Trajectory
       if (currentTrajectory && currentTrajectory.frames && currentTrajectory.frames.length > 0) {
         const frames = currentTrajectory.frames;
         const norm = Math.max(0, Math.min(1, progress));
@@ -1302,92 +1567,67 @@
         const f0 = frames[idx0];
         const f1 = frames[idx1];
 
-        // Animate Left Hand Skeleton Joints
-        const hasLh = f0.lh_joints && f1.lh_joints && f0.lh_joints.length === 21 && f1.lh_joints.length === 21;
-        lhJointMeshes.forEach(m => { m.visible = hasLh && showSkeleton; });
-        if (lhBoneLines) lhBoneLines.visible = hasLh && showSkeleton;
+        // 1. Animate Left & Right Articulated Hands (Carpus + 5 Metacarpals + 14 Phalanges + Skin + Skeleton)
+        updateSingleHandRigKinematics(lhHandRig, f0.lh_joints, f1.lh_joints, alpha);
+        updateSingleHandRigKinematics(rhHandRig, f0.rh_joints, f1.rh_joints, alpha);
 
-        if (hasLh && lhJointMeshes.length === 21) {
-          const positions = lhBoneLines.geometry.attributes.position.array;
-          for (let j = 0; j < 21; j++) {
-            const p0 = f0.lh_joints[j];
-            const p1 = f1.lh_joints[j];
-            const x = p0[0] + (p1[0] - p0[0]) * alpha;
-            const y = p0[1] + (p1[1] - p0[1]) * alpha;
-            const z = p0[2] + (p1[2] - p0[2]) * alpha;
-            lhJointMeshes[j].position.set(x, z, -y); // Convert CAD to Three.js coordinates
-          }
-          let ptr = 0;
-          for (let b = 0; b < BONE_CONNECTIONS.length; b++) {
-            const [jA, jB] = BONE_CONNECTIONS[b];
-            const posA = lhJointMeshes[jA].position;
-            const posB = lhJointMeshes[jB].position;
-            positions[ptr++] = posA.x; positions[ptr++] = posA.y; positions[ptr++] = posA.z;
-            positions[ptr++] = posB.x; positions[ptr++] = posB.y; positions[ptr++] = posB.z;
-          }
-          lhBoneLines.geometry.attributes.position.needsUpdate = true;
-        }
-
-        // Animate Right Hand Skeleton Joints
-        const hasRh = f0.rh_joints && f1.rh_joints && f0.rh_joints.length === 21 && f1.rh_joints.length === 21;
-        rhJointMeshes.forEach(m => { m.visible = hasRh && showSkeleton; });
-        if (rhBoneLines) rhBoneLines.visible = hasRh && showSkeleton;
-
-        if (hasRh && rhJointMeshes.length === 21) {
-          const positions = rhBoneLines.geometry.attributes.position.array;
-          for (let j = 0; j < 21; j++) {
-            const p0 = f0.rh_joints[j];
-            const p1 = f1.rh_joints[j];
-            const x = p0[0] + (p1[0] - p0[0]) * alpha;
-            const y = p0[1] + (p1[1] - p0[1]) * alpha;
-            const z = p0[2] + (p1[2] - p0[2]) * alpha;
-            rhJointMeshes[j].position.set(x, z, -y);
-          }
-          let ptr = 0;
-          for (let b = 0; b < BONE_CONNECTIONS.length; b++) {
-            const [jA, jB] = BONE_CONNECTIONS[b];
-            const posA = rhJointMeshes[jA].position;
-            const posB = rhJointMeshes[jB].position;
-            positions[ptr++] = posA.x; positions[ptr++] = posA.y; positions[ptr++] = posA.z;
-            positions[ptr++] = posB.x; positions[ptr++] = posB.y; positions[ptr++] = posB.z;
-          }
-          rhBoneLines.geometry.attributes.position.needsUpdate = true;
-        }
-
-        // Animate Workpiece Translation
+        // 2. Animate 6-DoF Workpiece Pose (Position & Euler Attitude)
         const wpPos0 = f0.workpiece_pos || f0.lock_pos;
         const wpPos1 = f1.workpiece_pos || f1.lock_pos;
-        if (workpieceMesh && wpPos0 && wpPos1) {
-          const x = wpPos0[0] + (wpPos1[0] - wpPos0[0]) * alpha;
-          const y = wpPos0[1] + (wpPos1[1] - wpPos0[1]) * alpha;
-          const z = wpPos0[2] + (wpPos1[2] - wpPos0[2]) * alpha;
-          workpieceMesh.position.set(x, z, -y);
+        if (dynamicWorkpieceGroup && wpPos0 && wpPos1) {
+          const wx = wpPos0[0] + (wpPos1[0] - wpPos0[0]) * alpha;
+          const wy = wpPos0[1] + (wpPos1[1] - wpPos0[1]) * alpha;
+          const wz = wpPos0[2] + (wpPos1[2] - wpPos0[2]) * alpha;
+          // CAD (wx, wy, wz) -> Three.js (wx, wz, wy)
+          dynamicWorkpieceGroup.position.set(wx, wz, wy);
+
+          if (f0.lock_euler && f1.lock_euler) {
+            const pitch = (f0.lock_euler[0] + (f1.lock_euler[0] - f0.lock_euler[0]) * alpha) * (Math.PI / 180.0);
+            const roll  = (f0.lock_euler[1] + (f1.lock_euler[1] - f0.lock_euler[1]) * alpha) * (Math.PI / 180.0);
+            const yaw   = (f0.lock_euler[2] + (f1.lock_euler[2] - f0.lock_euler[2]) * alpha) * (Math.PI / 180.0);
+            dynamicWorkpieceGroup.rotation.set(pitch, -yaw, roll);
+          } else {
+            dynamicWorkpieceGroup.rotation.set(0, 0, 0);
+          }
         }
 
-        // Animate Tool
-        if (toolMesh) {
-          const isToolVis = f0.tool_visible !== undefined ? Boolean(f0.tool_visible) : (f0.needle_visible !== undefined ? Boolean(f0.needle_visible) : true);
-          toolMesh.visible = isToolVis;
+        // 3. Animate Tool (L-shaped Bypass Needle / Folding Link / Tweezers)
+        if (dynamicToolGroup) {
+          const isToolVis = f0.tool_visible !== undefined ? Boolean(f0.tool_visible) : (f0.needle_visible !== undefined ? Boolean(f0.needle_visible) : false);
+          dynamicToolGroup.visible = isToolVis;
           const tPos0 = f0.tool_tip || f0.tool_pos;
           const tPos1 = f1.tool_tip || f1.tool_pos;
-          if (toolMesh.visible && tPos0 && tPos1) {
+          if (isToolVis && tPos0 && tPos1) {
             const tx = tPos0[0] + (tPos1[0] - tPos0[0]) * alpha;
             const ty = tPos0[1] + (tPos1[1] - tPos0[1]) * alpha;
             const tz = tPos0[2] + (tPos1[2] - tPos0[2]) * alpha;
-            toolMesh.position.set(tx, tz, -ty);
+            _pTipVec.set(tx, tz, ty);
+
+            if (dynamicToolGroup.userData.type === 'l_probe' && f0.pinch_pos && f1.pinch_pos) {
+              const px = f0.pinch_pos[0] + (f1.pinch_pos[0] - f0.pinch_pos[0]) * alpha;
+              const py = f0.pinch_pos[1] + (f1.pinch_pos[1] - f0.pinch_pos[1]) * alpha;
+              const pz = f0.pinch_pos[2] + (f1.pinch_pos[2] - f0.pinch_pos[2]) * alpha;
+              _pPinchVec.set(px, pz, py);
+              _tmpDir.subVectors(_pPinchVec, _pTipVec).normalize();
+              _pElbowVec.copy(_pPinchVec).addScaledVector(_tmpDir, 12.0);
+              _pEndVec.copy(_pElbowVec).add(new THREE.Vector3(2.0, -15.0, 0.0));
+              orientCylinderBetween(dynamicToolGroup.userData.shaftMesh, _pTipVec, _pElbowVec, 0.9);
+              orientCylinderBetween(dynamicToolGroup.userData.handleMesh, _pElbowVec, _pEndVec, 1.0);
+            } else if (dynamicToolGroup.userData.type === 'drop_link') {
+              _pPinchVec.set(-48.0, 30.0, 0.0);
+              orientCylinderBetween(dynamicToolGroup.userData.linkMesh, _pPinchVec, _pTipVec, 3.8);
+            } else {
+              dynamicToolGroup.position.copy(_pTipVec);
+            }
           }
         }
 
-        // Animate Certified Real Contact Points
+        // 4. Animate Certified Real Contact Points
         if (f0.contacts) {
           updateContactMarkers(f0.contacts);
         }
       }
 
-      // Smooth kinematic attitude rotation for scene body
-      if (sceneGroup && !isSimPlaying) {
-        sceneGroup.rotation.y = Math.sin(progress * Math.PI) * 0.08;
-      }
       requestRender();
     }
 
@@ -1501,15 +1741,15 @@
             const b = frame.bodies[bName];
             let target = null;
             if (bName.includes('needle') || bName.includes('tool') || bName.includes('link') || bName.includes('gear')) {
-              target = toolMesh;
+              target = dynamicToolGroup;
             } else if (bName.includes('padlock') || bName.includes('body') || bName.includes('stem') || bName.includes('plate')) {
-              target = workpieceMesh;
+              target = dynamicWorkpieceGroup;
             }
 
             if (target && b.pos_mm) {
-              target.position.set(b.pos_mm[0], b.pos_mm[2] * 0.5 + 5, -b.pos_mm[1]);
+              target.position.set(b.pos_mm[0], b.pos_mm[2] * 0.5 + 5, b.pos_mm[1]);
               if (b.quat) {
-                target.quaternion.set(b.quat[1], b.quat[3], -b.quat[2], b.quat[0]);
+                target.quaternion.set(b.quat[1], b.quat[3], b.quat[2], b.quat[0]);
               }
             }
           });
@@ -1521,7 +1761,7 @@
           const mat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
           frame.contacts.forEach(c => {
             const m = new THREE.Mesh(geo, mat);
-            m.position.set(c[0], c[2] * 0.5 + 5, -c[1]);
+            m.position.set(c[0], c[2] * 0.5 + 5, c[1]);
             contactMarkersGroup.add(m);
           });
         }

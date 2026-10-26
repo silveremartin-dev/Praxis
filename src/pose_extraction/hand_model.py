@@ -223,14 +223,25 @@ class AnatomicalHandModel:
         }
 
         # -------------------------------------------------------------
-        # 1. Metacarpal Palm (Smooth cylindrical anatomical rays + carpal arch)
+        # 1. Carpal Arch & 5 Articulated Metacarpals (Nested Cylinders)
         # -------------------------------------------------------------
-        # Carpal wrist crease anchor points
+        # Radiocarpal wrist crease & forearm entry cylinder
         p_wrist_mid = np.array([0.0, -2.0 * s, -22.0 * s])
-        p_forearm = np.array([-2.0 * sign * s, -3.0 * s, -55.0 * s])
-        parts.append((create_smooth_capsule(p_wrist_mid, p_forearm, 15.0 * s, 17.5 * s, sections=16), "palm"))
+        p_forearm = np.array([-2.0 * sign * s, -3.0 * s, -54.0 * s])
+        parts.append((create_smooth_capsule(p_wrist_mid, p_forearm, 14.0 * s, 16.5 * s, sections=16), "palm"))
 
-        # Knuckle joint positions along the distal edge of the metacarpals (Z = +24mm)
+        # Carpal tunnel arch bases (Proximal-to-Distal Carpal Row: Trapezium, Trapezoid, Capitate, Hamate)
+        carpal_cmc_origins = {
+            "index": np.array([9.5 * sign * s, -1.0 * s, -15.5 * s]),
+            "middle": np.array([3.0 * sign * s, -1.8 * s, -16.5 * s]),
+            "ring": np.array([-3.5 * sign * s, -1.2 * s, -16.0 * s]),
+            "pinky": np.array([-9.5 * sign * s, 0.2 * s, -15.0 * s]),
+        }
+        # Connect radiocarpal wrist to the 4 carpal CMC bases
+        for fname in ["index", "middle", "ring", "pinky"]:
+            parts.append((create_smooth_capsule(p_wrist_mid, carpal_cmc_origins[fname], 7.0 * s, 6.5 * s, sections=12), "palm"))
+
+        # Knuckle joint positions along the distal edge of the metacarpals
         knuckle_x = {
             "index": 15.5 * sign * s,
             "middle": 5.0 * sign * s,
@@ -243,34 +254,41 @@ class AnatomicalHandModel:
             "ring": 22.5 * s,
             "pinky": 19.5 * s,
         }
+        # 4th and 5th metacarpals flex palmarly (CMC mobility / hypothenar cupping) proportional to finger curl
+        cmc_mobility = {"index": 0.05, "middle": 0.0, "ring": 0.16, "pinky": 0.30}
 
         mcp_points: Dict[str, np.ndarray] = {}
-        # Construct palm from 4 anatomical metacarpal bone rays with smooth condyles
+        # Construct palm from 4 articulated metacarpal bone cylinders + transverse arch
         for fname in ["index", "middle", "ring", "pinky"]:
             kx = knuckle_x[fname]
-            cup_y = (abs(kx) / 20.0) * 1.5 * s
+            mcp_curl_val = clamped_curls[fname][0]
+            # Dynamic palmar cupping of the metacarpal arch as the hand closes
+            cup_y = ((abs(kx) / 18.0) * 1.8 + cmc_mobility[fname] * mcp_curl_val * 8.0) * s
             p_mcp = np.array([kx, cup_y, knuckle_z[fname]])
             mcp_points[fname] = p_mcp
-            
-            # Metacarpal shaft from wrist to knuckle (nested cylinder)
-            p_carpal_origin = np.array([kx * 0.65, -1.5 * s, -20.0 * s])
-            parts.append((create_smooth_capsule(p_carpal_origin, p_mcp, 7.5 * s, 6.5 * s, sections=14), "palm"))
-            # Spherical condyle joint cap at MCP
-            parts.append((create_smooth_capsule(p_mcp, p_mcp, 6.2 * s, 6.2 * s, sections=12), "palm"))
 
-        # Smooth central palmar pad filler
-        p_palm_center_1 = np.array([0.0, -1.0 * s, -2.0 * s])
-        p_palm_center_2 = np.array([0.0, 0.5 * s, 14.0 * s])
-        parts.append((create_smooth_capsule(p_palm_center_1, p_palm_center_2, 12.0 * s, 10.5 * s, sections=16), "palm"))
+            p_carpal = carpal_cmc_origins[fname]
+            parts.append((create_smooth_capsule(p_carpal, p_mcp, 6.8 * s, 6.0 * s, sections=14), "palm"))
+
+        # Transverse metacarpal ligament cylinders bridging adjacent knuckles (eliminates blocky slab)
+        ordered_rays = ["index", "middle", "ring", "pinky"]
+        for i_r in range(3):
+            p_a = mcp_points[ordered_rays[i_r]]
+            p_b = mcp_points[ordered_rays[i_r + 1]]
+            parts.append((create_smooth_capsule(p_a, p_b, 5.6 * s, 5.4 * s, sections=12), "palm"))
+            # Mid-palmar web cylinders for continuous soft-tissue dermis
+            m_a = 0.45 * carpal_cmc_origins[ordered_rays[i_r]] + 0.55 * p_a
+            m_b = 0.45 * carpal_cmc_origins[ordered_rays[i_r + 1]] + 0.55 * p_b
+            parts.append((create_smooth_capsule(m_a, m_b, 6.2 * s, 6.0 * s, sections=12), "palm"))
 
         # -------------------------------------------------------------
         # 2. Four Articulated Fingers (Index, Middle, Ring, Pinky)
         # -------------------------------------------------------------
         finger_dims = {
-            "index": (24.0 * s, 16.0 * s, 12.0 * s, 5.8 * s),
-            "middle": (26.5 * s, 17.5 * s, 13.0 * s, 6.0 * s),
-            "ring": (24.5 * s, 16.5 * s, 12.0 * s, 5.7 * s),
-            "pinky": (19.5 * s, 13.0 * s, 10.0 * s, 5.0 * s),
+            "index": (24.0 * s, 16.0 * s, 12.0 * s, 5.6 * s),
+            "middle": (26.5 * s, 17.5 * s, 13.0 * s, 5.8 * s),
+            "ring": (24.5 * s, 16.5 * s, 12.0 * s, 5.5 * s),
+            "pinky": (19.5 * s, 13.0 * s, 10.0 * s, 4.9 * s),
         }
 
         p_pip_dict: Dict[str, np.ndarray] = {}
@@ -286,11 +304,11 @@ class AnatomicalHandModel:
                 vec_tot = target_local - p_mcp
                 dist_tot = float(np.linalg.norm(vec_tot))
                 dir_tot = vec_tot / max(dist_tot, 1e-5)
-                dip_dir = dir_tot + np.array([0.0, 0.20, 0.0])
+                dip_dir = dir_tot + np.array([0.0, 0.18, 0.0])
                 dip_dir /= max(float(np.linalg.norm(dip_dir)), 1e-5)
                 p_dip_target = target_local - dip_dir * l_dist
                 p_pip, p_dip = solve_two_bone_ik(
-                    p_mcp, p_dip_target, l_prox, l_mid, bend_normal=np.array([0.0, -0.7, 0.7])
+                    p_mcp, p_dip_target, l_prox, l_mid, bend_normal=np.array([0.0, -0.75, 0.65])
                 )
                 p_tip = target_local if dist_tot <= (l_prox + l_mid + l_dist) else (p_dip + dip_dir * l_dist)
             else:
@@ -319,42 +337,45 @@ class AnatomicalHandModel:
             parts.append((create_smooth_capsule(p_dip, p_tip, r_base * 0.80, r_base * 0.68, sections=14), "tip"))
 
         # -------------------------------------------------------------
-        # 3. Opposable Thumb (Organic Muscular Thenar + 2 Phalanges)
+        # 3. Opposable Thumb (Trapezium CMC -> 1st Metacarpal -> Proximal -> Distal)
         # -------------------------------------------------------------
-        # CMC joint sits on the radial-palmar side of the wrist, safely outside workpiece boundary
-        p_cmc = np.array([22.0 * sign * s, 2.0 * s, -14.0 * s])
-        # Thenar muscle eminence: smooth fleshy muscle connecting wrist to thumb MCP
-        p_thenar_mcp = np.array([29.0 * sign * s, 9.0 * s, 4.0 * s])
-        thenar_mesh = create_smooth_capsule(p_cmc, p_thenar_mcp, 9.5 * s, 7.5 * s, sections=14)
-        parts.append((thenar_mesh, "thumb_base"))
+        # Trapezium CMC joint sits on the radial-palmar side of the carpus
+        p_cmc = np.array([14.5 * sign * s, 4.5 * s, -15.0 * s])
+        parts.append((create_smooth_capsule(p_wrist_mid, p_cmc, 7.2 * s, 7.5 * s, sections=12), "thumb_base"))
 
-        l_th_prox = 22.0 * s
-        l_th_dist = 18.0 * s
+        l_th_meta = 23.0 * s
+        l_th_prox = 19.5 * s
+        l_th_dist = 15.5 * s
 
         if thumb_tip_target_world is not None:
-            # Analytical IK for thumb contact pad reaching target without artificial struts
+            # Smooth 3-segment physiological thumb arch (CMC -> MCP -> IP -> TIP)
             th_target_local = world_to_local(thumb_tip_target_world)
             vec_to_t = th_target_local - p_cmc
             dist_to_t = float(np.linalg.norm(vec_to_t))
             dir_to_t = vec_to_t / max(dist_to_t, 1e-5)
-            # Route thenar cleanly outside workpiece boundary around the lateral flank
-            thenar_dir = 0.50 * dir_to_t + 0.50 * np.array([1.2 * sign, 0.7, 0.2])
-            thenar_dir /= max(float(np.linalg.norm(thenar_dir)), 1e-5)
-            p_thenar_mcp = p_cmc + thenar_dir * (24.0 * s)
 
+            # 1st Metacarpal angles smoothly around the radial-palmar margin toward the target
+            radial_out = np.array([0.65 * sign, 0.62, 0.44])
+            radial_out /= np.linalg.norm(radial_out)
+            meta_dir = 0.58 * dir_to_t + 0.42 * radial_out
+            meta_dir /= max(float(np.linalg.norm(meta_dir)), 1e-5)
+            p_thenar_mcp = p_cmc + meta_dir * l_th_meta
+
+            # Solve 2-bone IK for Proximal and Distal phalanges with natural radial-palmar arch normal
             p_th_ip, p_th_tip = solve_two_bone_ik(
                 p_thenar_mcp,
                 th_target_local,
                 l_th_prox,
                 l_th_dist,
-                bend_normal=np.array([1.4 * sign, 0.8, 0.1])
+                bend_normal=np.array([0.45 * sign, 0.75, 0.48])
             )
         else:
             if thumb_angles is None:
-                thumb_angles = (0.60, 0.40, 0.30)
+                thumb_angles = (0.55, 0.35, 0.25)
             th_abd, th_mcp, th_ip = thumb_angles
+            p_thenar_mcp = p_cmc + np.array([11.5 * sign * s, 11.0 * s, 16.5 * s])
             th_dir1 = np.array([
-                sign * np.cos(th_abd) * 0.4,
+                sign * np.cos(th_abd) * 0.35,
                 np.sin(th_abd),
                 np.cos(th_mcp)
             ])
@@ -362,16 +383,23 @@ class AnatomicalHandModel:
             p_th_ip = p_thenar_mcp + th_dir1 * l_th_prox
 
             th_dir2 = np.array([
-                -sign * np.sin(th_ip) * 0.4,
-                np.sin(th_abd - th_ip * 0.4),
-                np.cos(th_mcp + th_ip * 0.3)
+                -sign * np.sin(th_ip) * 0.35,
+                np.sin(th_abd - th_ip * 0.35),
+                np.cos(th_mcp + th_ip * 0.25)
             ])
             th_dir2 /= np.linalg.norm(th_dir2)
             p_th_tip = p_th_ip + th_dir2 * l_th_dist
 
-        # Thumb proximal phalanx and distal phalanx (clean, no struts to index)
-        parts.append((create_smooth_capsule(p_thenar_mcp, p_th_ip, 7.8 * s, 7.0 * s, sections=14), "thumb"))
-        parts.append((create_smooth_capsule(p_th_ip, p_th_tip, 7.0 * s, 6.0 * s, sections=14), "thumb_tip"))
+        # Build 1st Metacarpal + Muscular Thenar Eminence + First Dorsal Interosseous Web
+        thenar_mesh = create_smooth_capsule(p_cmc, p_thenar_mcp, 8.2 * s, 6.8 * s, sections=14)
+        parts.append((thenar_mesh, "thumb_base"))
+        p_thenar_web = 0.5 * p_cmc + 0.5 * p_thenar_mcp
+        p_idx_mid = 0.5 * carpal_cmc_origins["index"] + 0.5 * mcp_points["index"]
+        parts.append((create_smooth_capsule(p_thenar_web, p_idx_mid, 6.5 * s, 5.8 * s, sections=12), "palm"))
+
+        # Thumb proximal phalanx and distal phalanx (nested tapered cylinders)
+        parts.append((create_smooth_capsule(p_thenar_mcp, p_th_ip, 6.6 * s, 5.8 * s, sections=14), "thumb"))
+        parts.append((create_smooth_capsule(p_th_ip, p_th_tip, 5.8 * s, 4.9 * s, sections=14), "thumb_tip"))
 
         # Transform all sub-meshes into world frame
         T = np.eye(4)
