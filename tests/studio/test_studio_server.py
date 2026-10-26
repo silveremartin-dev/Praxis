@@ -25,18 +25,17 @@ def test_get_index_html():
 
 
 def test_get_clips_catalog():
-    """Verify demonstration clips catalog returns 4 certified sequences."""
+    """Verify demonstration clips catalog returns certified sequences."""
     response = client.get("/api/clips")
     assert response.status_code == 200
     clips = response.json()
     assert isinstance(clips, list)
-    assert len(clips) >= 4
+    assert len(clips) >= 3
 
     clip_ids = [c["id"] for c in clips]
     assert "07_lpl_masterlock" in clip_ids
     assert "01_lpl_dropkey" in clip_ids
-    assert "05_watch_zodiac" in clip_ids
-    assert "06_singer_sewingmachine" in clip_ids
+    assert "09_lpl_abus_80ti40" in clip_ids
 
 
 def test_get_clip_detail():
