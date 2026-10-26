@@ -118,14 +118,27 @@ To guarantee scientific reproducibility and production dataset scaling, all phys
   Palm breadth across MCP knuckles must be bounded between $65.0\text{ mm}$ and $95.0\text{ mm}$.
   Any extracted hand model below $15\text{ cm}$ or above $25\text{ cm}$ is physically unfeasible and MUST be rejected automatically by `AnthropometricHandBounds`.
 * **Rigid Bone Chain Kinematics**: A hand is composed of nested rigid bone cylinders articulated by anatomical joints with physiological Degrees of Freedom (DoFs). Joint angles must respect human range-of-motion limits (MCP, PIP, DIP flexion $[0, 90^\circ-105^\circ]$, spread $[-15^\circ, +15^\circ]$). Hyperextension and impossible backwards bending are strictly forbidden.
+* **Dual-Layer Osteological & Soft-Tissue Architecture**: The biological hand model is mathematically decoupled into:
+  1. *Rigid Calcium Skeleton*: 19 articulated bone segments (carpal base, 5 metacarpals, 5 proximal, 4 intermediate, 5 distal phalanges) connected by 16 physiological joint pivots with invariant rotational limits.
+  2. *Compliant Dermis Envelope*: A continuous volumetric skin manifold wrapping the bone chains with physiological pad thicknesses ($4-6\text{ mm}$ palmar pad, $3-4\text{ mm}$ digital pulps, fleshy thenar eminence), eliminating polygonal faceting while strictly preventing interpenetration.
 
-### 3. Solid Non-Penetrability Invariant ($L_{\text{SDF}} \ge 0$)
+### 3. Bimanual Chirality & Inward Workpiece Convergence Invariant
+* **Chirality Constraint (Zero Anatomical Duplication)**: In any physical demonstration, a human operator possesses at most one left hand and at most one right hand:
+  $$\text{Count}(\text{LeftHand}) \le 1, \quad \text{Count}(\text{RightHand}) \le 1$$
+  Any vision tracking pipeline hallucinating two left hands or two right hands violates physical reality and is automatically rejected by `HandChiralityAuditor`.
+* **Inward Affordance Convergence**: In goal-directed manipulation, both hands originate from complementary lateral workspaces ($X_{\text{LH}} \le X_{\text{workpiece}} \le X_{\text{RH}}$) and converge inward toward the shared workpiece centroid:
+  $$\vec{v}_{\text{LH}} \cdot (\vec{x}_{\text{workpiece}} - \vec{x}_{\text{LH}}) \ge 0, \quad \vec{v}_{\text{RH}} \cdot (\vec{x}_{\text{workpiece}} - \vec{x}_{\text{RH}}) \ge 0$$
+* **Inter-Hand Non-Collision**: The human hands themselves are mutually impenetrable solid bodies:
+  $$\min_{x \in \mathcal{M}_{\text{LH}},\, y \in \mathcal{M}_{\text{RH}}} \|x - y\| \ge 0.0\text{ mm}$$
+  Any trajectory where left and right finger meshes intersect or stab each other across the scene is unphysical and rejected.
+
+### 4. Solid Non-Penetrability Invariant ($L_{\text{SDF}} \ge 0$)
 * Both the human hand and the manipulated workpiece/tool are **solid physical bodies**.
 * The non-penetration condition MUST hold across all contact surfaces:
   $$\min_{x \in \mathcal{M}_{\text{hand}}} \text{SDF}_{\text{workpiece}}(x) \ge 0.0\text{ mm}$$
 * Penetration of fingers or tools into solid rigid bodies is a physical impossibility. Any raw video extraction where fingers intersect solid CAD geometry must be automatically corrected by `PhysicsSanitizer` via outward gradient projection ($\nabla \text{SDF}$) onto the boundary manifold, or rejected if gross penetration exceeds the resolvable threshold.
 
-### 4. Workpiece Rigidity & Compliance Specification
+### 5. Workpiece Rigidity & Compliance Specification
 * Workpieces and tools are modeled as **rigid solids** by default ($k \to \infty$).
 * When an object or portion thereof is physically compliant or semi-soft (e.g., rubber pads, foam, human skin deformation), its softness must be modeled explicitly via defined compliance parameters (elastic modulus, maximum deformation depth), while strictly preventing unrestrained mesh penetration.
 
