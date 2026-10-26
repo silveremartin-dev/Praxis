@@ -81,7 +81,32 @@ class ShotBoundaryDetector:
     Detects camera framing cuts and scene transitions via color histogram correlation
     and inter-frame structural difference.
     """
-    FRAME_DIFF_THRESHOLD: float = 0.28  # Normalized mean absolute pixel difference threshold for shot cut
+    FRAME_DIFF_THRESHOLD: float = 0.14  # Normalized mean absolute pixel difference threshold for shot cut
+
+    @classmethod
+    def split_into_continuous_shots(
+        cls,
+        video_path: str,
+        t_start: float,
+        t_end: float,
+        min_shot_duration_sec: float = 3.0,
+    ) -> List[Tuple[float, float]]:
+        """
+        Splits a video interval [t_start, t_end] at any detected camera cut into
+        clean, single-shot sub-intervals of duration >= min_shot_duration_sec.
+        """
+        audit = cls.audit_shot_continuity(video_path, t_start, t_end, sample_step=1)
+        if audit.is_single_continuous_shot:
+            return [(round(t_start, 2), round(t_end, 2))] if (t_end - t_start) >= min_shot_duration_sec else []
+
+        boundaries = [t_start] + sorted(audit.cut_timestamps_seconds) + [t_end]
+        clean_shots: List[Tuple[float, float]] = []
+        for i in range(len(boundaries) - 1):
+            s0 = boundaries[i] + (0.08 if i > 0 else 0.0)
+            s1 = boundaries[i + 1] - (0.08 if i + 1 < len(boundaries) - 1 else 0.0)
+            if (s1 - s0) >= min_shot_duration_sec:
+                clean_shots.append((round(s0, 2), round(s1, 2)))
+        return clean_shots
 
     @classmethod
     def audit_shot_continuity(

@@ -1,0 +1,32 @@
+{
+  "clip_file": "08_LPL_AmericanLock_1100_clip_55s_65s.mp4",
+  "source_raw_video": "LPL_AmericanLock_1100.mp4",
+  "timing": {
+    "t_start_seconds": 55.0,
+    "t_end_seconds": 65.0,
+    "duration_seconds": 10.03,
+    "fps": 30.0,
+    "total_frames": 301
+  },
+  "action_annotation": {
+    "what_is_the_person_doing": "Bimanual full-hand-to-wrist TOK tension and serrated pin picking on American Lock 1100",
+    "action_verb": "manipulate",
+    "target_tool": "0.050in TOK prybar + standard hook pick",
+    "target_workpiece": "American Lock Series 1100 anodized aluminum padlock",
+    "hand_engagement": "bi-manual",
+    "camera_context": "static_macro"
+  },
+  "task_teleology": {
+    "is_goal_directed": false,
+    "is_state_irreversible": true,
+    "pre_condition": "initial_unmanipulated_state",
+    "post_condition": "target_manipulated_state",
+    "action_verb": "manipulate"
+  },
+  "physical_affordances": {},
+  "next_pipeline_stages": [
+    "src.pose_extraction.hand_mesh",
+    "src.physics_sanitizer.sdf_optimizer",
+    "src.feasibility.urdf_auditor"
+  ]
+}

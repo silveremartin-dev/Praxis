@@ -116,15 +116,15 @@ class AnthropometricHandBounds:
     NOMINAL_PALM_BREADTH_MM = 82.0
 
     # Physiological joint angle limits (radians)
-    # Flexion (+) / Extension (-)
-    MCP_FLEXION_LIMITS = (-0.15, 1.60)   # -8 deg to 92 deg
-    PIP_FLEXION_LIMITS = (-0.05, 1.85)   # -3 deg to 106 deg
-    DIP_FLEXION_LIMITS = (-0.05, 1.55)   # -3 deg to 89 deg
+    # Flexion (+) strictly >= 0.0 rad (no hyperextension / backwards bending past 180 deg)
+    MCP_FLEXION_LIMITS = (0.0, 1.57)     # 0 deg (straight 180°) to 90 deg palmar flexion
+    PIP_FLEXION_LIMITS = (0.0, 1.83)     # 0 deg (straight 180°) to 105 deg palmar flexion
+    DIP_FLEXION_LIMITS = (0.0, 1.48)     # 0 deg (straight 180°) to 85 deg palmar flexion
     FINGER_SPREAD_LIMITS = (-0.26, 0.26) # +/- 15 deg abduction/adduction
 
     @classmethod
     def clamp_curl_angles(cls, curl: Tuple[float, float, float]) -> Tuple[float, float, float]:
-        """Clamps (MCP, PIP, DIP) curl angles to physiological ranges (no backwards bending)."""
+        """Clamps (MCP, PIP, DIP) curl angles to physiological ranges (strictly >= 0, zero backwards bending)."""
         mcp = float(np.clip(curl[0], cls.MCP_FLEXION_LIMITS[0], cls.MCP_FLEXION_LIMITS[1]))
         pip = float(np.clip(curl[1], cls.PIP_FLEXION_LIMITS[0], cls.PIP_FLEXION_LIMITS[1]))
         dip = float(np.clip(curl[2], cls.DIP_FLEXION_LIMITS[0], cls.DIP_FLEXION_LIMITS[1]))
@@ -134,6 +134,70 @@ class AnthropometricHandBounds:
     def clamp_spread(cls, spread: float) -> float:
         """Clamps finger abduction/adduction angle."""
         return float(np.clip(spread, cls.FINGER_SPREAD_LIMITS[0], cls.FINGER_SPREAD_LIMITS[1]))
+
+    @classmethod
+    def solve_physiological_finger_ik(
+        cls,
+        p_mcp: np.ndarray,
+        target_local: np.ndarray,
+        l_prox: float,
+        l_mid: float,
+        l_dist: float,
+        fallback_curl: Tuple[float, float, float] = (0.35, 0.45, 0.25),
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Solves 3-phalanx finger Inverse Kinematics strictly within physiological flexion bounds
+        (theta_mcp >= 0, theta_pip >= 0, theta_dip >= 0).
+        Every phalanx bends strictly forward/palmarly (+Y_local) with monotonic cumulative angle
+        0 <= alpha_1 <= alpha_2 <= alpha_3, making backwards hyperextension (> 180 deg) impossible.
+        """
+        p_mcp = np.asarray(p_mcp, dtype=float)
+        target_local = np.asarray(target_local, dtype=float)
+        delta = target_local - p_mcp
+
+        # Lateral abduction/adduction spread within [-15 deg, +15 deg]
+        spread = float(np.clip(np.arctan2(delta[0], max(abs(delta[2]), 8.0)), -0.26, 0.26))
+        ez = np.array([np.sin(spread), 0.0, np.cos(spread)], dtype=float)
+        ez /= np.linalg.norm(ez)
+        ey = np.array([0.0, 1.0, 0.0], dtype=float)
+
+        # Grid search over physiological (mcp, pip) with coupled dip = 0.65 * pip, all >= 0.0
+        best_err = float("inf")
+        best_pts: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None
+
+        mcp_candidates = np.linspace(0.0, 1.35, 19)
+        pip_candidates = np.linspace(0.0, 1.55, 19)
+
+        for mcp_a in mcp_candidates:
+            a1 = float(mcp_a)
+            d1 = np.cos(a1) * ez + np.sin(a1) * ey
+            p_pip_cand = p_mcp + d1 * l_prox
+            for pip_a in pip_candidates:
+                dip_a = 0.65 * float(pip_a)
+                a2 = a1 + float(pip_a)
+                a3 = a2 + dip_a
+                d2 = np.cos(a2) * ez + np.sin(a2) * ey
+                d3 = np.cos(a3) * ez + np.sin(a3) * ey
+                p_dip_cand = p_pip_cand + d2 * l_mid
+                p_tip_cand = p_dip_cand + d3 * l_dist
+                err = float(np.sum((p_tip_cand - target_local) ** 2)) + 0.04 * float(mcp_a * mcp_a + pip_a * pip_a)
+                if err < best_err:
+                    best_err = err
+                    best_pts = (p_pip_cand, p_dip_cand, p_tip_cand)
+
+        if best_pts is not None:
+            return best_pts
+
+        mcp_a, pip_a, dip_a = cls.clamp_curl_angles(fallback_curl)
+        d1 = np.cos(mcp_a) * ez + np.sin(mcp_a) * ey
+        p_pip = p_mcp + d1 * l_prox
+        a2 = mcp_a + pip_a
+        d2 = np.cos(a2) * ez + np.sin(a2) * ey
+        p_dip = p_pip + d2 * l_mid
+        a3 = a2 + dip_a
+        d3 = np.cos(a3) * ez + np.sin(a3) * ey
+        p_tip = p_dip + d3 * l_dist
+        return p_pip, p_dip, p_tip
 
 
 class AnatomicalHandModel:
@@ -299,18 +363,16 @@ class AnatomicalHandModel:
             p_mcp = mcp_points[fname]
 
             if fname == "index" and index_tip_target_world is not None:
-                # Analytical IK for index pointing / contact
+                # Physiological flexion IK: strictly >= 0 flexion on MCP, PIP, DIP (zero backwards hyperextension)
                 target_local = world_to_local(index_tip_target_world)
-                vec_tot = target_local - p_mcp
-                dist_tot = float(np.linalg.norm(vec_tot))
-                dir_tot = vec_tot / max(dist_tot, 1e-5)
-                dip_dir = dir_tot + np.array([0.0, 0.18, 0.0])
-                dip_dir /= max(float(np.linalg.norm(dip_dir)), 1e-5)
-                p_dip_target = target_local - dip_dir * l_dist
-                p_pip, p_dip = solve_two_bone_ik(
-                    p_mcp, p_dip_target, l_prox, l_mid, bend_normal=np.array([0.0, -0.75, 0.65])
+                p_pip, p_dip, p_tip = AnthropometricHandBounds.solve_physiological_finger_ik(
+                    p_mcp,
+                    target_local,
+                    l_prox,
+                    l_mid,
+                    l_dist,
+                    fallback_curl=clamped_curls["index"],
                 )
-                p_tip = target_local if dist_tot <= (l_prox + l_mid + l_dist) else (p_dip + dip_dir * l_dist)
             else:
                 mcp_a, pip_a, dip_a = clamped_curls[fname]
                 sp = clamped_spread[fname] * sign
@@ -340,12 +402,12 @@ class AnatomicalHandModel:
         # 3. Opposable Thumb (Trapezium CMC -> 1st Metacarpal -> Proximal -> Distal)
         # -------------------------------------------------------------
         # Trapezium CMC joint sits on the radial-palmar side of the carpus
-        p_cmc = np.array([14.5 * sign * s, 4.5 * s, -15.0 * s])
+        p_cmc = np.array([15.0 * sign * s, 5.5 * s, -9.0 * s])
         parts.append((create_smooth_capsule(p_wrist_mid, p_cmc, 7.2 * s, 7.5 * s, sections=12), "thumb_base"))
 
-        l_th_meta = 23.0 * s
-        l_th_prox = 19.5 * s
-        l_th_dist = 15.5 * s
+        l_th_meta = 26.5 * s
+        l_th_prox = 21.5 * s
+        l_th_dist = 16.5 * s
 
         if thumb_tip_target_world is not None:
             # Smooth 3-segment physiological thumb arch (CMC -> MCP -> IP -> TIP)
@@ -355,9 +417,9 @@ class AnatomicalHandModel:
             dir_to_t = vec_to_t / max(dist_to_t, 1e-5)
 
             # 1st Metacarpal angles smoothly around the radial-palmar margin toward the target
-            radial_out = np.array([0.65 * sign, 0.62, 0.44])
+            radial_out = np.array([0.55 * sign, 0.65, 0.52])
             radial_out /= np.linalg.norm(radial_out)
-            meta_dir = 0.58 * dir_to_t + 0.42 * radial_out
+            meta_dir = 0.68 * dir_to_t + 0.32 * radial_out
             meta_dir /= max(float(np.linalg.norm(meta_dir)), 1e-5)
             p_thenar_mcp = p_cmc + meta_dir * l_th_meta
 
@@ -540,16 +602,14 @@ class DexterousRobotHandModel:
 
             if fname == "index" and index_tip_target_world is not None:
                 target_local = world_to_local(index_tip_target_world)
-                vec_tot = target_local - p_mcp
-                dist_tot = float(np.linalg.norm(vec_tot))
-                dir_tot = vec_tot / max(dist_tot, 1e-5)
-                dip_dir = dir_tot + np.array([0.0, 0.15, 0.0])
-                dip_dir /= max(float(np.linalg.norm(dip_dir)), 1e-5)
-                p_dip_target = target_local - dip_dir * l_dist
-                p_pip, p_dip = solve_two_bone_ik(
-                    p_mcp, p_dip_target, l_prox, l_mid, bend_normal=np.array([0.0, -0.7, 0.7])
+                p_pip, p_dip, p_tip = AnthropometricHandBounds.solve_physiological_finger_ik(
+                    p_mcp,
+                    target_local,
+                    l_prox,
+                    l_mid,
+                    l_dist,
+                    fallback_curl=finger_curls.get("index", (0.4, 0.5, 0.3)),
                 )
-                p_tip = target_local if dist_tot <= (l_prox + l_mid + l_dist) else (p_dip + dip_dir * l_dist)
             else:
                 mcp_a, pip_a, dip_a = finger_curls.get(fname, (0.6, 0.8, 0.5))
                 dir1 = np.array([0.0, np.sin(mcp_a), np.cos(mcp_a)])

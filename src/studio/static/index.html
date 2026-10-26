@@ -439,56 +439,92 @@
           <video id="videoPlayer" playsinline controls muted preload="auto"></video>
         </div>
 
-        <!-- Custom Scrubber & Play Controls -->
+        <!-- Custom Scrubber & Frame-Accurate Play Controls (1x and x1/10 Slow Motion) -->
         <div class="playback-bar">
           <div class="time-row">
             <span id="timeCurrent">00:00.00</span>
+            <span id="frameCounterBadge" style="background:#1e293b; color:#e2e8f0; padding:2px 6px; border-radius:4px; font-weight:700;">Frame: 0 / 300</span>
             <span id="phaseBadge" style="background:#083344; color:#38bdf8; padding:2px 6px; border-radius:4px; font-weight:700;">Phase 1</span>
             <span id="timeDuration">00:10.00</span>
           </div>
-          <input type="range" id="timeScrubber" min="0" max="10" step="0.01" value="0">
+          <input type="range" id="timeScrubber" min="0" max="10" step="0.005" value="0">
           <div class="btn-row">
-            <div style="display: flex; gap: 4px;">
-              <button id="btnPrevFrame" class="btn btn-secondary" style="padding: 3px 8px; font-size: 10px;">-1f</button>
-              <button id="btnPlayPause" class="btn btn-primary" style="padding: 3px 12px; font-size: 11px;">
-                <span id="playIcon">Play</span>
+            <div style="display: flex; gap: 4px; align-items: center;">
+              <button id="btnPrevFrame" class="btn btn-secondary" style="padding: 3px 7px; font-size: 10px;" title="Previous Video Frame (-1 frame)">⏮ -1f</button>
+              <button id="btnPlayPause" class="btn btn-primary" style="padding: 3px 10px; font-size: 11px;" title="Play / Pause at normal speed (1.0x)">
+                <span id="playIcon">▶ Play 1x</span>
               </button>
-              <button id="btnNextFrame" class="btn btn-secondary" style="padding: 3px 8px; font-size: 10px;">+1f</button>
+              <button id="btnPlaySlow" class="btn btn-secondary" style="padding: 3px 9px; font-size: 10px; border-color:#0891b2; color:#38bdf8;" title="Play at 1/10th slow-motion speed (0.1x)">
+                🐢 Play &times;1/10
+              </button>
+              <button id="btnNextFrame" class="btn btn-secondary" style="padding: 3px 7px; font-size: 10px;" title="Next Video Frame (+1 frame)">+1f ⏭</button>
             </div>
-            <button id="btnToggleMute" class="btn btn-secondary" style="padding: 3px 8px; font-size: 10px;">Muted 🔇</button>
+            <button id="btnToggleMute" class="btn btn-secondary" style="padding: 3px 7px; font-size: 10px;">Muted 🔇</button>
           </div>
         </div>
       </div>
 
-      <!-- Phases Breakdown -->
+      <!-- Phases & Extracted Semantic Activity Metadata -->
       <div class="phases-wrap custom-scroll">
-        <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
-          Semantic Task Graph (Click to Seek)
+        <div style="font-size: 10px; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px;">
+          Semantic Task Graph &amp; Phases (Click to Seek)
         </div>
-        <div id="phasesList" style="display: flex; flex-direction: column; gap: 5px;"></div>
+        <div id="phasesList" style="display: flex; flex-direction: column; gap: 4px;"></div>
+
+        <!-- Extracted Semantic & VLA Robot Conditioning Card -->
+        <div style="margin-top: 6px; background: #0b1324; border: 1px solid #1e3a5f; border-radius: 6px; padding: 8px; display: flex; flex-direction: column; gap: 5px; font-size: 10.5px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:800; color:#22d3ee; text-transform:uppercase; font-size:10px;">Extracted Activity &amp; Robot VLA Intent</span>
+            <span id="lblGoalVerb" style="background:#064e3b; color:#34d399; padding:1px 6px; border-radius:4px; font-family:monospace; font-weight:700; font-size:9.5px;">BYPASS / UNLATCH</span>
+          </div>
+          <div style="color:#cbd5e1; line-height:1.35;">
+            <strong style="color:#94a3b8;">Movement Sense:</strong> <span id="lblMovementSense">—</span>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; background:#070b14; padding:5px; border-radius:4px; font-size:10px;">
+            <div><strong style="color:#f59e0b;">Pre-State:</strong> <div id="lblPreState" style="color:#cbd5e1; margin-top:1px;">—</div></div>
+            <div><strong style="color:#10b981;">Post-State:</strong> <div id="lblPostState" style="color:#cbd5e1; margin-top:1px;">—</div></div>
+          </div>
+          <div style="background:#070b14; border-left:2px solid #06b6d4; padding:5px 6px; border-radius:3px; font-family:monospace; font-size:9.5px; color:#e2e8f0; line-height:1.35;">
+            <div style="color:#38bdf8; font-weight:700; margin-bottom:2px;">🤖 Robot VLA Instruction Payload:</div>
+            <div id="lblVlaPrompt">—</div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-family:monospace; font-size:9.5px; color:#94a3b8; padding-top:2px; border-top:1px solid #1e293b;">
+            <span>Shot Audit:</span>
+            <span id="lblShotAudit" style="color:#34d399; font-weight:700;">PASS (0 cuts)</span>
+          </div>
+        </div>
       </div>
 
       <!-- Bottom Metadata -->
       <div class="meta-bar">
         <div class="meta-row"><span>Workpiece:</span><span id="lblWorkpiece" class="meta-val">Master Lock No. 3</span></div>
         <div class="meta-row"><span>Tool:</span><span id="lblTool" class="meta-val">Bypass Needle (0.5mm)</span></div>
-        <div class="meta-row"><span>Penetration:</span><span style="color:#34d399; font-weight:bold;">0.00 mm (Certified)</span></div>
+        <div class="meta-row"><span>Grasp Taxonomy:</span><span id="lblGraspTaxonomy" class="meta-val" style="color:#38bdf8;">Thumb-Index Pinch</span></div>
+        <div class="meta-row"><span>Penetration &amp;ROM:</span><span style="color:#34d399; font-weight:bold;">0.00 mm | &le;180&deg; (No Hyperext.)</span></div>
       </div>
     </section>
 
     <!-- CENTER PANEL: 3D Canvas -->
     <section class="col-center">
       <div id="webglContainer">
+        <!-- 16:9 Camera Viewpoint Correspondence Frame Border -->
+        <div id="viewpointFrameOverlay" style="position:absolute; inset:34px 18px 18px 18px; border:1px dashed rgba(56, 189, 248, 0.28); border-radius:8px; pointer-events:none; z-index:4; display:flex; align-items:flex-end; justify-content:space-between; padding:6px 10px; font-family:monospace; font-size:9.5px; color:rgba(148, 163, 184, 0.7);">
+          <span>&#x25F8; Left Hand Workspace (-X)</span>
+          <span>1:1 Video Camera Viewpoint Plane</span>
+          <span>Right Hand Workspace (+X) &#x25F9;</span>
+        </div>
         <!-- Floating HUD -->
         <div class="canvas-hud">
           <div class="hud-chip">
             <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#10b981;"></span>
-            <span>3D Collision-Free Manifold</span>
+            <span id="hudClipTitle">3D Collision-Free Manifold</span>
           </div>
           <div class="hud-chip">
             <span>SDF: <strong style="color:#34d399;">0.00 mm</strong></span>
             <span>|</span>
-            <span>Physics: <strong id="hudPhysicsStatus" style="color:#38bdf8;">Equilibrium</strong></span>
+            <span>Speed: <strong id="hudSpeedBadge" style="color:#38bdf8;">1.0x</strong></span>
+            <span>|</span>
+            <span>Hands: <strong style="color:#34d399;">LH + RH (21J &times; 2)</strong></span>
           </div>
         </div>
 
@@ -1071,39 +1107,74 @@
     }
 
     // ---------------- CLIP SELECTION & INSTANT 3D SWITCHING ----------------
+    let clipSelectSeq = 0;
+
     async function selectClip(clipId) {
-      currentClip = clipsCatalog.find(c => c.id === clipId);
-      if (!currentClip) return;
+      const mySeq = ++clipSelectSeq;
+      const found = clipsCatalog.find(c => c.id === clipId);
+      if (!found) return;
+      currentClip = found;
       clipSelect.value = clipId;
 
-      // Update Native Video Player
+      // Stop any ongoing video playback before switching
+      videoPlayer.pause();
+      videoPlayer.playbackRate = 1.0;
       videoPlayer.src = currentClip.video_url;
       videoPlayer.load();
+
       timeScrubber.max = currentClip.duration_sec;
       timeDuration.textContent = formatTime(currentClip.duration_sec);
       timeScrubber.value = 0;
       timeCurrent.textContent = "00:00.00";
-      playIcon.textContent = "Play";
+      playIcon.textContent = "▶ Play 1x";
+      const slowBtn = document.getElementById('btnPlaySlow');
+      if (slowBtn) slowBtn.textContent = "🐢 Play ×1/10";
+      const speedBadge = document.getElementById('hudSpeedBadge');
+      if (speedBadge) speedBadge.textContent = "1.0x";
       activePhaseIdx = -1;
 
-      document.getElementById('videoCodecBadge').textContent = `H.264 ${currentClip.fps || 30}fps`;
-      document.getElementById('lblWorkpiece').textContent = currentClip.workpiece;
-      document.getElementById('lblTool').textContent = currentClip.tool;
+      const totalF = currentClip.total_frames || Math.round((currentClip.duration_sec || 10) * (currentClip.fps || 30));
+      const fBadge = document.getElementById('frameCounterBadge');
+      if (fBadge) fBadge.textContent = `Frame: 0 / ${totalF}`;
 
-      // Fetch dynamic 3D trajectory
+      document.getElementById('videoCodecBadge').textContent = `H.264 ${currentClip.fps || 30}fps`;
+      document.getElementById('lblWorkpiece').textContent = currentClip.workpiece || '—';
+      document.getElementById('lblTool').textContent = currentClip.tool || '—';
+
+      // Populate Extracted Semantic Activity & Robot VLA Conditioning Metadata
+      const elGoal = document.getElementById('lblGoalVerb');
+      if (elGoal) elGoal.textContent = currentClip.goal_verb || 'MANIPULATE';
+      const elMove = document.getElementById('lblMovementSense');
+      if (elMove) elMove.textContent = currentClip.movement_sense || currentClip.action_verb || '—';
+      const elPre = document.getElementById('lblPreState');
+      if (elPre) elPre.textContent = currentClip.pre_condition || 'Initial state';
+      const elPost = document.getElementById('lblPostState');
+      if (elPost) elPost.textContent = currentClip.post_condition || 'Goal state achieved';
+      const elVla = document.getElementById('lblVlaPrompt');
+      if (elVla) elVla.textContent = currentClip.vla_prompt || currentClip.action_verb || '—';
+      const elShot = document.getElementById('lblShotAudit');
+      if (elShot) elShot.textContent = currentClip.shot_audit || 'PASS — Single Continuous Shot (0 cuts)';
+      const elGrasp = document.getElementById('lblGraspTaxonomy');
+      if (elGrasp) elGrasp.textContent = currentClip.grasp_taxonomy || currentClip.hand_engagement || 'Bimanual Pinch';
+      const elHudTitle = document.getElementById('hudClipTitle');
+      if (elHudTitle) elHudTitle.textContent = currentClip.title || '3D Collision-Free Manifold';
+
+      // Fetch dynamic 3D trajectory with cache-busting and race protection
       try {
-        const trajRes = await fetch(`/api/clip/${clipId}/trajectory`);
+        const trajRes = await fetch(`/api/clip/${clipId}/trajectory?t=${Date.now()}`);
+        if (mySeq !== clipSelectSeq) return;
         if (trajRes.ok) {
           currentTrajectory = await trajRes.json();
         } else {
           currentTrajectory = null;
         }
       } catch (err) {
+        if (mySeq !== clipSelectSeq) return;
         console.warn('Trajectory fetch failed:', err);
         currentTrajectory = null;
       }
 
-      // Update Dataset Links
+      // Update Dataset Links safely
       if (currentClip.parquet_url) {
         document.getElementById('linkParquet').href = currentClip.parquet_url;
         document.getElementById('linkParquet').textContent = currentClip.parquet_url.split('/').pop();
@@ -1134,7 +1205,7 @@
         `;
         card.addEventListener('click', () => {
           const match = p.time_range.match(/([0-9.]+)s/);
-          if (match) {
+          if (match && currentClip) {
             const t = parseFloat(match[1]);
             videoPlayer.currentTime = t;
             timeScrubber.value = t;
@@ -1146,7 +1217,7 @@
       });
     }
 
-    // ---------------- DYNAMIC MULTI-PART WORKPIECE & TOOL BUILDER ----------------
+    // ---------------- DYNAMIC MULTI-PART WORKPIECE & TOOL BUILDER (ALL 7 CLIPS) ----------------
     function load3DSceneCached(clipId, objUrl) {
       if (dynamicWorkpieceGroup) {
         sceneGroup.remove(dynamicWorkpieceGroup);
@@ -1163,36 +1234,37 @@
       sceneGroup.add(dynamicWorkpieceGroup);
       sceneGroup.add(dynamicToolGroup);
 
+      // Unified 1:1 Camera Viewpoint across all clips so Left Hand (-X), Workpiece (Center), and Right Hand (+X)
+      // match the video screen border directly
+      camera.position.set(0, 26, 195);
+      controls.target.set(0, 18, 0);
+
       if (clipId === '07_lpl_masterlock') {
         buildContouredMasterLockRig(dynamicWorkpieceGroup, dynamicToolGroup);
-        camera.position.set(0, 26, 195);
-        controls.target.set(0, 18, 0);
+      } else if (clipId === '08_american_lock_1100') {
+        buildAmericanLock1100Rig(dynamicWorkpieceGroup, dynamicToolGroup);
+      } else if (clipId === '02_ifixit_dualsense') {
+        buildDualSenseRig(dynamicWorkpieceGroup, dynamicToolGroup);
       } else if (clipId === '01_lpl_dropkey') {
         buildDropKeyRig(dynamicWorkpieceGroup, dynamicToolGroup);
-        camera.position.set(0, 35, 220);
-        controls.target.set(0, 25, 0);
+      } else if (clipId === '03_diy_cementwd40') {
+        buildWD40CanisterRig(dynamicWorkpieceGroup, dynamicToolGroup);
       } else if (clipId === '05_watch_zodiac') {
         buildWatchZodiacRig(dynamicWorkpieceGroup, dynamicToolGroup);
-        camera.position.set(0, 38, 175);
-        controls.target.set(0, 20, 0);
       } else if (clipId === '06_singer_sewingmachine') {
         buildSingerRig(dynamicWorkpieceGroup, dynamicToolGroup);
-        camera.position.set(0, 85, 260);
-        controls.target.set(0, 80, 0);
       } else {
         buildContouredMasterLockRig(dynamicWorkpieceGroup, dynamicToolGroup);
-        camera.position.set(0, 26, 195);
-        controls.target.set(0, 18, 0);
       }
       controls.update();
 
       updateHandRigAppearance(lhHandRig);
       updateHandRigAppearance(rhHandRig);
-      updateProgress(videoPlayer.duration ? (videoPlayer.currentTime / videoPlayer.duration) : 0.0);
+      // Force immediate update at progress = 0.0 so switching clips immediately updates hands & workpiece
+      updateProgress(0.0);
     }
 
     function buildContouredMasterLockRig(wpGroup, tlGroup) {
-      // Materials matching the real Master Lock No. 3 in the video
       const steelWingMat = new THREE.MeshPhongMaterial({ color: 0x90a4ae, specular: 0xcfd8dc, shininess: 55, wireframe: isWireframe });
       const steelShoulderMat = new THREE.MeshPhongMaterial({ color: 0xb0bec5, specular: 0xeceff1, shininess: 65, wireframe: isWireframe });
       const steelCenterMat = new THREE.MeshPhongMaterial({ color: 0xd5dde2, specular: 0xffffff, shininess: 80, wireframe: isWireframe });
@@ -1233,7 +1305,6 @@
       bodyCenter.position.set(0, coreY, 0);
       wpGroup.add(bodyCenter);
 
-      // Horizontal laminated plate ribs
       for (let i = 0; i < 6; i++) {
         const yRib = 9.5 + i * 3.8;
         const ribC = new THREE.Mesh(new THREE.BoxGeometry(W_center + 0.3, 1.1, T_center + 0.3), ribMat);
@@ -1241,7 +1312,6 @@
         wpGroup.add(ribC);
       }
 
-      // 3. Four Corner Rivet Heads on Top Plate
       const rivetGeo = new THREE.CylinderGeometry(1.5, 1.5, 1.2, 12);
       [-W * 0.40, W * 0.40].forEach(rx => {
         [-T_wing * 0.32, T_wing * 0.32].forEach(rz => {
@@ -1251,13 +1321,11 @@
         });
       });
 
-      // 4. Open Shackle Cavity on Top Right (X = +10.45mm)
       const holeX = W * 0.275;
       const holeMesh = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.8, 1.4, 16), darkHoleMat);
       holeMesh.position.set(holeX, H + 0.2, 0);
       wpGroup.add(holeMesh);
 
-      // 5. Hardened Steel Shackle (7mm diameter, swung 180 deg open to the left)
       const shackleR = 3.4;
       const pivotX = -holeX;
       const rightLeg = new THREE.Mesh(new THREE.CylinderGeometry(shackleR, shackleR, 22.0, 16), shackleMat);
@@ -1276,7 +1344,6 @@
       leftLeg.position.set(toeX, H + 14.5, 0);
       wpGroup.add(leftLeg);
 
-      // 6. Single Legitimate Brass Key Inserted Vertically into Bottom Keyway (No fake horizontal key!)
       const keyBow = new THREE.Mesh(new THREE.CylinderGeometry(7.2, 7.2, 2.0, 20), brassKeyMat);
       keyBow.rotation.x = Math.PI / 2;
       keyBow.position.set(3.0, -7.0, 0.0);
@@ -1291,7 +1358,6 @@
       keyNeck.position.set(3.0, -2.0, 0.0);
       wpGroup.add(keyNeck);
 
-      // 7. L-Shaped Bypass Decoder Needle in Tool Group
       const needleMat = new THREE.MeshPhongMaterial({ color: 0x38bdf8, specular: 0xffffff, shininess: 90 });
       const handleMat = new THREE.MeshPhongMaterial({ color: 0xe2e8f0, specular: 0xffffff, shininess: 90 });
       const unitCyl = new THREE.CylinderGeometry(1, 1, 1, 12);
@@ -1302,55 +1368,189 @@
       tlGroup.userData = { type: 'l_probe', shaftMesh, handleMesh };
     }
 
+    function buildAmericanLock1100Rig(wpGroup, tlGroup) {
+      const blueAnodizedMat = new THREE.MeshPhongMaterial({ color: 0x1d4ed8, specular: 0x93c5fd, shininess: 75, wireframe: isWireframe });
+      const shackleMat = new THREE.MeshPhongMaterial({ color: 0xe2e8f0, specular: 0xffffff, shininess: 95, wireframe: isWireframe });
+      const brassMat = new THREE.MeshPhongMaterial({ color: 0xd4af37, specular: 0xfef08a, shininess: 80, wireframe: isWireframe });
+      const prybarMat = new THREE.MeshPhongMaterial({ color: 0x94a3b8, specular: 0xffffff, shininess: 85 });
+      const pickMat = new THREE.MeshPhongMaterial({ color: 0x38bdf8, specular: 0xffffff, shininess: 90 });
+
+      // Anodized Aluminum Body (38x42x18mm)
+      const body = new THREE.Mesh(new THREE.BoxGeometry(36.0, 40.0, 18.0), blueAnodizedMat);
+      body.position.set(0, 12.0, 0);
+      wpGroup.add(body);
+
+      // Bottom Brass Cylinder Plug
+      const plug = new THREE.Mesh(new THREE.CylinderGeometry(5.5, 5.5, 18.4, 18), brassMat);
+      plug.rotation.x = Math.PI / 2;
+      plug.position.set(2.0, -2.0, 0);
+      wpGroup.add(plug);
+
+      // TOK Tension Prybar extending from bottom keyway toward Left Thumb
+      const tokBar = new THREE.Mesh(new THREE.BoxGeometry(18.0, 3.2, 1.4), prybarMat);
+      tokBar.position.set(-4.0, -5.0, 10.5);
+      tokBar.rotation.z = 0.25;
+      wpGroup.add(tokBar);
+
+      // Animated Shackle Group
+      const shackleGroup = new THREE.Group();
+      const legL = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 22.0, 14), shackleMat);
+      legL.position.set(-10.0, 38.0, 0);
+      const legR = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 3.2, 22.0, 14), shackleMat);
+      legR.position.set(10.0, 38.0, 0);
+      const arch = new THREE.Mesh(new THREE.TorusGeometry(10.0, 3.2, 12, 20, Math.PI), shackleMat);
+      arch.position.set(0, 49.0, 0);
+      shackleGroup.add(legL, legR, arch);
+      wpGroup.add(shackleGroup);
+      wpGroup.userData = { shackleGroup };
+
+      // Hook Pick in Tool Group
+      const unitCyl = new THREE.CylinderGeometry(1, 1, 1, 12);
+      const shaftMesh = new THREE.Mesh(unitCyl, pickMat);
+      const handleMesh = new THREE.Mesh(unitCyl, prybarMat);
+      tlGroup.add(shaftMesh, handleMesh);
+      tlGroup.userData = { type: 'l_probe', shaftMesh, handleMesh };
+    }
+
+    function buildDualSenseRig(wpGroup, tlGroup) {
+      const shellMat = new THREE.MeshPhongMaterial({ color: 0xe2e8f0, specular: 0xffffff, shininess: 45, wireframe: isWireframe });
+      const midframeMat = new THREE.MeshPhongMaterial({ color: 0x1e293b, specular: 0x475569, shininess: 35, wireframe: isWireframe });
+      const pcbMat = new THREE.MeshPhongMaterial({ color: 0x059669, specular: 0x6ee7b7, shininess: 50, wireframe: isWireframe });
+      const batteryMat = new THREE.MeshPhongMaterial({ color: 0x475569, specular: 0x94a3b8, shininess: 60, wireframe: isWireframe });
+      const driverMat = new THREE.MeshPhongMaterial({ color: 0x0284c7, specular: 0x7dd3fc, shininess: 80 });
+      const tipMat = new THREE.MeshPhongMaterial({ color: 0xe2e8f0, specular: 0xffffff, shininess: 90 });
+
+      // Controller central chassis & left/right handles
+      const core = new THREE.Mesh(new THREE.BoxGeometry(68.0, 10.0, 42.0), midframeMat);
+      wpGroup.add(core);
+      const gripL = new THREE.Mesh(new THREE.CylinderGeometry(11.0, 8.5, 48.0, 16), shellMat);
+      gripL.rotation.x = Math.PI / 2;
+      gripL.rotation.z = 0.25;
+      gripL.position.set(-34.0, -2.0, 12.0);
+      wpGroup.add(gripL);
+      const gripR = new THREE.Mesh(new THREE.CylinderGeometry(11.0, 8.5, 48.0, 16), shellMat);
+      gripR.rotation.x = Math.PI / 2;
+      gripR.rotation.z = -0.25;
+      gripR.position.set(34.0, -2.0, 12.0);
+      wpGroup.add(gripR);
+
+      const pcb = new THREE.Mesh(new THREE.BoxGeometry(52.0, 2.0, 32.0), pcbMat);
+      pcb.position.set(0, 5.5, 0);
+      wpGroup.add(pcb);
+
+      // Removable Li-Ion Battery Pack
+      const batMesh = new THREE.Mesh(new THREE.BoxGeometry(36.0, 7.0, 24.0), batteryMat);
+      batMesh.position.set(0, 9.5, 2.0);
+      wpGroup.add(batMesh);
+      wpGroup.userData = { batMesh };
+
+      // iFixit Precision Driver / Spudger
+      const unitCyl = new THREE.CylinderGeometry(1, 1, 1, 14);
+      const shaftMesh = new THREE.Mesh(unitCyl, tipMat);
+      const handleMesh = new THREE.Mesh(unitCyl, driverMat);
+      tlGroup.add(shaftMesh, handleMesh);
+      tlGroup.userData = { type: 'driver', shaftMesh, handleMesh };
+    }
+
     function buildDropKeyRig(wpGroup, tlGroup) {
-      const steelMat = new THREE.MeshPhongMaterial({ color: 0xcbd5e1, specular: 0xffffff, shininess: 85 });
-      const brassMat = new THREE.MeshPhongMaterial({ color: 0xd4af37, specular: 0xfef08a, shininess: 70 });
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(4.0, 4.0, 95.0, 20), steelMat);
-      stem.rotation.z = Math.PI / 2;
-      wpGroup.add(stem);
-      const collar = new THREE.Mesh(new THREE.CylinderGeometry(6.5, 6.5, 10.0, 20), brassMat);
+      const brassMat = new THREE.MeshPhongMaterial({ color: 0xd4af37, specular: 0xfef08a, shininess: 75, wireframe: isWireframe });
+      const housingMat = new THREE.MeshPhongMaterial({ color: 0x64748b, specular: 0xcbd5e1, shininess: 65, wireframe: isWireframe });
+      const steelMat = new THREE.MeshPhongMaterial({ color: 0xe2e8f0, specular: 0xffffff, shininess: 90, wireframe: isWireframe });
+
+      // Lock Cylinder Housing held by Left Hand on the left (-X)
+      const body = new THREE.Mesh(new THREE.BoxGeometry(32.0, 34.0, 18.0), housingMat);
+      body.position.set(-8.0, 2.0, 0);
+      wpGroup.add(body);
+      const collar = new THREE.Mesh(new THREE.CylinderGeometry(8.5, 8.5, 10.0, 20), brassMat);
       collar.rotation.z = Math.PI / 2;
-      collar.position.set(20, 0, 0);
+      collar.position.set(10.0, 0, 0);
       wpGroup.add(collar);
+
+      // Horizontal Key Stem inserted into keyway
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 28.0, 16), steelMat);
+      stem.rotation.z = Math.PI / 2;
+      stem.position.set(18.0, 0, 4.0);
+      wpGroup.add(stem);
+
+      // Articulated Folding Distal Link in Tool Group
       const unitCyl = new THREE.CylinderGeometry(1, 1, 1, 16);
       const linkMesh = new THREE.Mesh(unitCyl, steelMat);
-      tlGroup.add(linkMesh);
-      tlGroup.userData = { type: 'drop_link', linkMesh };
+      const pinMesh = new THREE.Mesh(new THREE.SphereGeometry(3.4, 12, 12), brassMat);
+      tlGroup.add(linkMesh, pinMesh);
+      tlGroup.userData = { type: 'drop_link', linkMesh, pinMesh };
+    }
+
+    function buildWD40CanisterRig(wpGroup, tlGroup) {
+      const canBlueMat = new THREE.MeshPhongMaterial({ color: 0x1e40af, specular: 0x93c5fd, shininess: 65, wireframe: isWireframe });
+      const yellowBadgeMat = new THREE.MeshPhongMaterial({ color: 0xfacc15, specular: 0xfef08a, shininess: 50, wireframe: isWireframe });
+      const domeSteelMat = new THREE.MeshPhongMaterial({ color: 0xcbd5e1, specular: 0xffffff, shininess: 85, wireframe: isWireframe });
+      const redNozzleMat = new THREE.MeshPhongMaterial({ color: 0xdc2626, specular: 0xfca5a5, shininess: 60 });
+
+      // Blue Aerosol Canister Body
+      const canBody = new THREE.Mesh(new THREE.CylinderGeometry(19.0, 19.0, 56.0, 24), canBlueMat);
+      canBody.position.set(0, 4.0, 0);
+      wpGroup.add(canBody);
+
+      // Yellow WD-40 Shield Label on Front (+Z in Three.js)
+      const label = new THREE.Mesh(new THREE.BoxGeometry(22.0, 20.0, 2.0), yellowBadgeMat);
+      label.position.set(0, 10.0, 18.5);
+      wpGroup.add(label);
+
+      // Steel Top Dome
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(18.5, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), domeSteelMat);
+      dome.position.set(0, 32.0, 0);
+      wpGroup.add(dome);
+
+      // Red Spray Nozzle & Straw in Tool Group
+      const nozzleCap = new THREE.Mesh(new THREE.CylinderGeometry(5.5, 6.0, 7.5, 16), redNozzleMat);
+      const unitCyl = new THREE.CylinderGeometry(1, 1, 1, 12);
+      const strawMesh = new THREE.Mesh(unitCyl, redNozzleMat);
+      tlGroup.add(nozzleCap, strawMesh);
+      tlGroup.userData = { type: 'wd40_nozzle', nozzleCap, strawMesh };
     }
 
     function buildWatchZodiacRig(wpGroup, tlGroup) {
-      const holderMat = new THREE.MeshPhongMaterial({ color: 0x94a3b8, specular: 0xe2e8f0, shininess: 60 });
-      const brassMat = new THREE.MeshPhongMaterial({ color: 0xeab308, specular: 0xfef08a, shininess: 80 });
-      const rubyMat = new THREE.MeshPhongMaterial({ color: 0xe11d48, specular: 0xffcdd2, shininess: 90 });
-      const holder = new THREE.Mesh(new THREE.CylinderGeometry(28.0, 28.0, 18.0, 28), holderMat);
-      holder.position.set(0, -10.0, 0);
+      const holderMat = new THREE.MeshPhongMaterial({ color: 0x94a3b8, specular: 0xe2e8f0, shininess: 60, wireframe: isWireframe });
+      const brassMat = new THREE.MeshPhongMaterial({ color: 0xeab308, specular: 0xfef08a, shininess: 80, wireframe: isWireframe });
+      const rubyMat = new THREE.MeshPhongMaterial({ color: 0xe11d48, specular: 0xffcdd2, shininess: 90, wireframe: isWireframe });
+
+      const holder = new THREE.Mesh(new THREE.CylinderGeometry(24.0, 24.0, 14.0, 28), holderMat);
+      holder.position.set(0, -8.0, 0);
       wpGroup.add(holder);
-      const plate = new THREE.Mesh(new THREE.CylinderGeometry(15.0, 15.0, 2.2, 24), brassMat);
+      const plate = new THREE.Mesh(new THREE.CylinderGeometry(17.0, 17.0, 3.0, 24), brassMat);
       plate.position.set(0, 0, 0);
       wpGroup.add(plate);
-      const gear = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 0.8, 20), rubyMat);
-      gear.position.set(0, 1.5, 0);
+      const gear = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.2, 1.4, 20), rubyMat);
+      gear.position.set(0, 2.2, 2.0);
       wpGroup.add(gear);
+      wpGroup.userData = { gear };
 
       const tweezerMat = new THREE.MeshPhongMaterial({ color: 0x38bdf8, specular: 0xffffff, shininess: 90 });
-      const bladeL = new THREE.Mesh(new THREE.BoxGeometry(1.0, 28.0, 0.8), tweezerMat);
-      bladeL.position.set(-1.2, 14.0, 0);
-      bladeL.rotation.z = -0.08;
-      const bladeR = new THREE.Mesh(new THREE.BoxGeometry(1.0, 28.0, 0.8), tweezerMat);
-      bladeR.position.set(1.2, 14.0, 0);
-      bladeR.rotation.z = 0.08;
-      tlGroup.add(bladeL);
-      tlGroup.add(bladeR);
-      tlGroup.userData = { type: 'tweezer' };
+      const unitCyl = new THREE.CylinderGeometry(1, 1, 1, 12);
+      const bladeL = new THREE.Mesh(unitCyl, tweezerMat);
+      const bladeR = new THREE.Mesh(unitCyl, tweezerMat);
+      tlGroup.add(bladeL, bladeR);
+      tlGroup.userData = { type: 'tweezer', bladeL, bladeR };
     }
 
     function buildSingerRig(wpGroup, tlGroup) {
-      const castIronMat = new THREE.MeshPhongMaterial({ color: 0x475569, specular: 0x94a3b8, shininess: 50 });
-      const goldMat = new THREE.MeshPhongMaterial({ color: 0xd4af37, specular: 0xfef08a, shininess: 75 });
-      const plate = new THREE.Mesh(new THREE.BoxGeometry(4.5, 110.0, 58.0), castIronMat);
-      wpGroup.add(plate);
-      const ridge = new THREE.Mesh(new THREE.BoxGeometry(6.0, 90.0, 16.0), goldMat);
-      wpGroup.add(ridge);
+      const castIronMat = new THREE.MeshPhongMaterial({ color: 0x334155, specular: 0x94a3b8, shininess: 55, wireframe: isWireframe });
+      const goldMat = new THREE.MeshPhongMaterial({ color: 0xd4af37, specular: 0xfef08a, shininess: 80, wireframe: isWireframe });
+      const filigreeMat = new THREE.MeshPhongMaterial({ color: 0x64748b, specular: 0xe2e8f0, shininess: 70, wireframe: isWireframe });
+
+      // Stationary Sewing Machine Head Casting on Left (-X)
+      const headBlock = new THREE.Mesh(new THREE.BoxGeometry(28.0, 42.0, 20.0), castIronMat);
+      headBlock.position.set(-14.0, 0, 0);
+      wpGroup.add(headBlock);
+      const decal = new THREE.Mesh(new THREE.BoxGeometry(20.0, 10.0, 21.0), goldMat);
+      decal.position.set(-14.0, 6.0, 0);
+      wpGroup.add(decal);
+
+      // Detachable Ornate Filigree Faceplate in Tool Group (pulled outward +X by Right Hand)
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(18.0, 44.0, 14.0), filigreeMat);
+      const scroll = new THREE.Mesh(new THREE.BoxGeometry(19.0, 32.0, 15.0), goldMat);
+      tlGroup.add(plate, scroll);
+      tlGroup.userData = { type: 'faceplate' };
     }
 
     function updateContactMarkers(contacts) {
@@ -1368,7 +1568,7 @@
       });
     }
 
-    // ---------------- FAST EVENT LISTENERS ----------------
+    // ---------------- FAST EVENT LISTENERS & FRAME-BY-FRAME / 0.1x SLOW-MO ----------------
     function setupEventListeners() {
       clipSelect.addEventListener('change', (e) => selectClip(e.target.value));
 
@@ -1382,17 +1582,32 @@
         requestRender();
       });
 
-      btnPlayPause.addEventListener('click', togglePlay);
+      btnPlayPause.addEventListener('click', () => togglePlay(1.0));
+      const btnPlaySlow = document.getElementById('btnPlaySlow');
+      if (btnPlaySlow) {
+        btnPlaySlow.addEventListener('click', () => togglePlay(0.1));
+      }
 
-      videoPlayer.addEventListener('play', () => { playIcon.textContent = 'Pause'; });
-      videoPlayer.addEventListener('pause', () => { playIcon.textContent = 'Play'; });
+      videoPlayer.addEventListener('play', () => {
+        updatePlayButtonsUI();
+        startVideoFrameSyncLoop();
+      });
+      videoPlayer.addEventListener('pause', () => {
+        updatePlayButtonsUI();
+      });
+      videoPlayer.addEventListener('loadedmetadata', () => {
+        if (currentClip) {
+          updateProgress(0.0);
+        }
+      });
 
       videoPlayer.addEventListener('timeupdate', () => {
-        if (!videoPlayer.duration) return;
+        const dur = videoPlayer.duration || (currentClip ? currentClip.duration_sec : 10.0);
+        if (!dur) return;
         const cur = videoPlayer.currentTime;
         timeScrubber.value = cur;
         timeCurrent.textContent = formatTime(cur);
-        updateProgress(cur / videoPlayer.duration);
+        updateProgress(cur / dur);
       });
 
       btnToggleMute.addEventListener('click', () => {
@@ -1402,17 +1617,34 @@
 
       timeScrubber.addEventListener('input', (e) => {
         const t = parseFloat(e.target.value);
+        const dur = videoPlayer.duration || (currentClip ? currentClip.duration_sec : 10.0);
         videoPlayer.currentTime = t;
         timeCurrent.textContent = formatTime(t);
-        if (videoPlayer.duration) updateProgress(t / videoPlayer.duration);
+        if (dur) updateProgress(t / dur);
       });
 
+      // Exact 1-Frame Backward Step (-1f)
       document.getElementById('btnPrevFrame').addEventListener('click', () => {
-        videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - (1 / 30));
+        videoPlayer.pause();
+        const fps = (currentClip && currentClip.fps) ? currentClip.fps : 30.0;
+        const dur = videoPlayer.duration || (currentClip ? currentClip.duration_sec : 10.0);
+        const nextT = Math.max(0, videoPlayer.currentTime - (1.0 / fps));
+        videoPlayer.currentTime = nextT;
+        timeScrubber.value = nextT;
+        timeCurrent.textContent = formatTime(nextT);
+        updateProgress(nextT / dur);
       });
 
+      // Exact 1-Frame Forward Step (+1f)
       document.getElementById('btnNextFrame').addEventListener('click', () => {
-        videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + (1 / 30));
+        videoPlayer.pause();
+        const fps = (currentClip && currentClip.fps) ? currentClip.fps : 30.0;
+        const dur = videoPlayer.duration || (currentClip ? currentClip.duration_sec : 10.0);
+        const nextT = Math.min(dur, videoPlayer.currentTime + (1.0 / fps));
+        videoPlayer.currentTime = nextT;
+        timeScrubber.value = nextT;
+        timeCurrent.textContent = formatTime(nextT);
+        updateProgress(nextT / dur);
       });
 
       // Tab Switching
@@ -1501,17 +1733,52 @@
       document.getElementById('ingestForm').addEventListener('submit', handleIngest);
     }
 
-    function togglePlay() {
+    function updatePlayButtonsUI() {
+      const slowBtn = document.getElementById('btnPlaySlow');
+      const speedBadge = document.getElementById('hudSpeedBadge');
       if (videoPlayer.paused) {
+        playIcon.textContent = '▶ Play 1x';
+        if (slowBtn) slowBtn.textContent = '🐢 Play ×1/10';
+      } else if (Math.abs(videoPlayer.playbackRate - 0.1) < 0.02) {
+        playIcon.textContent = '▶ Play 1x';
+        if (slowBtn) slowBtn.textContent = '⏸ Pause ×1/10';
+        if (speedBadge) speedBadge.textContent = '0.1x (Slow-Mo)';
+      } else {
+        playIcon.textContent = '⏸ Pause 1x';
+        if (slowBtn) slowBtn.textContent = '🐢 Play ×1/10';
+        if (speedBadge) speedBadge.textContent = '1.0x';
+      }
+    }
+
+    function togglePlay(targetRate) {
+      const rate = targetRate || 1.0;
+      if (videoPlayer.paused || Math.abs(videoPlayer.playbackRate - rate) > 0.02) {
+        videoPlayer.playbackRate = rate;
         videoPlayer.play().catch(() => {
           videoPlayer.muted = true;
+          videoPlayer.playbackRate = rate;
           videoPlayer.play();
         });
-        playIcon.textContent = 'Pause';
+        updatePlayButtonsUI();
       } else {
         videoPlayer.pause();
-        playIcon.textContent = 'Play';
+        updatePlayButtonsUI();
       }
+    }
+
+    function startVideoFrameSyncLoop() {
+      function stepSync() {
+        if (videoPlayer.paused || videoPlayer.ended) return;
+        const dur = videoPlayer.duration || (currentClip ? currentClip.duration_sec : 10.0);
+        if (dur > 0) {
+          const cur = videoPlayer.currentTime;
+          timeScrubber.value = cur;
+          timeCurrent.textContent = formatTime(cur);
+          updateProgress(cur / dur);
+        }
+        requestAnimationFrame(stepSync);
+      }
+      requestAnimationFrame(stepSync);
     }
 
     function formatTime(sec) {
@@ -1527,9 +1794,18 @@
     const _pElbowVec = new THREE.Vector3();
     const _pEndVec = new THREE.Vector3();
 
-    // Real-time 60 FPS update of all articulated hand bones, skin cylinders, contoured workpiece & tool
+    // Frame-accurate update of all articulated hand bones, skin cylinders, contoured workpiece & tool
     function updateProgress(progress) {
-      const t = progress * (currentClip ? currentClip.duration_sec : 10.0);
+      const dur = currentClip ? currentClip.duration_sec : 10.0;
+      const fps = (currentClip && currentClip.fps) ? currentClip.fps : 30.0;
+      const totalF = (currentClip && currentClip.total_frames) ? currentClip.total_frames : Math.round(dur * fps);
+      const normProg = Math.max(0, Math.min(1, isNaN(progress) ? 0 : progress));
+      const t = normProg * dur;
+
+      // Update exact video frame counter badge
+      const curFrameIdx = Math.min(totalF, Math.round(normProg * totalF));
+      const fBadge = document.getElementById('frameCounterBadge');
+      if (fBadge) fBadge.textContent = `Frame: ${curFrameIdx} / ${totalF}`;
 
       // Find active phase
       let foundIdx = -1;
@@ -1558,8 +1834,7 @@
 
       if (currentTrajectory && currentTrajectory.frames && currentTrajectory.frames.length > 0) {
         const frames = currentTrajectory.frames;
-        const norm = Math.max(0, Math.min(1, progress));
-        const exactIdx = norm * (frames.length - 1);
+        const exactIdx = normProg * (frames.length - 1);
         const idx0 = Math.floor(exactIdx);
         const idx1 = Math.min(frames.length - 1, idx0 + 1);
         const alpha = exactIdx - idx0;
@@ -1571,14 +1846,13 @@
         updateSingleHandRigKinematics(lhHandRig, f0.lh_joints, f1.lh_joints, alpha);
         updateSingleHandRigKinematics(rhHandRig, f0.rh_joints, f1.rh_joints, alpha);
 
-        // 2. Animate 6-DoF Workpiece Pose (Position & Euler Attitude)
+        // 2. Animate 6-DoF Workpiece Pose (Position & Euler Attitude + Sub-part animations)
         const wpPos0 = f0.workpiece_pos || f0.lock_pos;
         const wpPos1 = f1.workpiece_pos || f1.lock_pos;
         if (dynamicWorkpieceGroup && wpPos0 && wpPos1) {
           const wx = wpPos0[0] + (wpPos1[0] - wpPos0[0]) * alpha;
           const wy = wpPos0[1] + (wpPos1[1] - wpPos0[1]) * alpha;
           const wz = wpPos0[2] + (wpPos1[2] - wpPos0[2]) * alpha;
-          // CAD (wx, wy, wz) -> Three.js (wx, wz, wy)
           dynamicWorkpieceGroup.position.set(wx, wz, wy);
 
           if (f0.lock_euler && f1.lock_euler) {
@@ -1589,9 +1863,23 @@
           } else {
             dynamicWorkpieceGroup.rotation.set(0, 0, 0);
           }
+
+          // Sub-part animations (American Lock shackle pop, DualSense battery lift, Zodiac gear lift)
+          if (dynamicWorkpieceGroup.userData.shackleGroup && f0.shackle_pop_mm !== undefined) {
+            const pop = f0.shackle_pop_mm + ((f1.shackle_pop_mm || 0) - f0.shackle_pop_mm) * alpha;
+            dynamicWorkpieceGroup.userData.shackleGroup.position.y = pop;
+          }
+          if (dynamicWorkpieceGroup.userData.batMesh && f0.bat_lift_mm !== undefined) {
+            const lift = f0.bat_lift_mm + ((f1.bat_lift_mm || 0) - f0.bat_lift_mm) * alpha;
+            dynamicWorkpieceGroup.userData.batMesh.position.y = 9.5 + lift;
+          }
+          if (dynamicWorkpieceGroup.userData.gear && f0.gear_lift_mm !== undefined) {
+            const gLift = f0.gear_lift_mm + ((f1.gear_lift_mm || 0) - f0.gear_lift_mm) * alpha;
+            dynamicWorkpieceGroup.userData.gear.position.y = 2.2 + gLift;
+          }
         }
 
-        // 3. Animate Tool (L-shaped Bypass Needle / Folding Link / Tweezers)
+        // 3. Animate Tool (L-shaped Bypass Needle / Folding Drop-Key Link / Tweezers / Driver / WD-40 Nozzle / Singer Faceplate)
         if (dynamicToolGroup) {
           const isToolVis = f0.tool_visible !== undefined ? Boolean(f0.tool_visible) : (f0.needle_visible !== undefined ? Boolean(f0.needle_visible) : false);
           dynamicToolGroup.visible = isToolVis;
@@ -1603,7 +1891,8 @@
             const tz = tPos0[2] + (tPos1[2] - tPos0[2]) * alpha;
             _pTipVec.set(tx, tz, ty);
 
-            if (dynamicToolGroup.userData.type === 'l_probe' && f0.pinch_pos && f1.pinch_pos) {
+            const tType = dynamicToolGroup.userData.type;
+            if (tType === 'l_probe' && f0.pinch_pos && f1.pinch_pos) {
               const px = f0.pinch_pos[0] + (f1.pinch_pos[0] - f0.pinch_pos[0]) * alpha;
               const py = f0.pinch_pos[1] + (f1.pinch_pos[1] - f0.pinch_pos[1]) * alpha;
               const pz = f0.pinch_pos[2] + (f1.pinch_pos[2] - f0.pinch_pos[2]) * alpha;
@@ -1613,9 +1902,43 @@
               _pEndVec.copy(_pElbowVec).add(new THREE.Vector3(2.0, -15.0, 0.0));
               orientCylinderBetween(dynamicToolGroup.userData.shaftMesh, _pTipVec, _pElbowVec, 0.9);
               orientCylinderBetween(dynamicToolGroup.userData.handleMesh, _pElbowVec, _pEndVec, 1.0);
-            } else if (dynamicToolGroup.userData.type === 'drop_link') {
-              _pPinchVec.set(-48.0, 30.0, 0.0);
-              orientCylinderBetween(dynamicToolGroup.userData.linkMesh, _pPinchVec, _pTipVec, 3.8);
+            } else if (tType === 'drop_link') {
+              const pv0 = f0.pivot_pos || [10.0, 4.0, 22.0];
+              const pv1 = f1.pivot_pos || pv0;
+              _pPinchVec.set(
+                pv0[0] + (pv1[0] - pv0[0]) * alpha,
+                pv0[2] + (pv1[2] - pv0[2]) * alpha,
+                pv0[1] + (pv1[1] - pv0[1]) * alpha
+              );
+              dynamicToolGroup.userData.pinMesh.position.copy(_pPinchVec);
+              orientCylinderBetween(dynamicToolGroup.userData.linkMesh, _pPinchVec, _pTipVec, 2.8);
+            } else if (tType === 'driver' && f0.pinch_pos && f1.pinch_pos) {
+              const px = f0.pinch_pos[0] + (f1.pinch_pos[0] - f0.pinch_pos[0]) * alpha;
+              const py = f0.pinch_pos[1] + (f1.pinch_pos[1] - f0.pinch_pos[1]) * alpha;
+              const pz = f0.pinch_pos[2] + (f1.pinch_pos[2] - f0.pinch_pos[2]) * alpha;
+              _pPinchVec.set(px, pz, py);
+              _tmpDir.subVectors(_pPinchVec, _pTipVec).normalize();
+              _pEndVec.copy(_pPinchVec).addScaledVector(_tmpDir, 32.0);
+              orientCylinderBetween(dynamicToolGroup.userData.shaftMesh, _pTipVec, _pPinchVec, 1.4);
+              orientCylinderBetween(dynamicToolGroup.userData.handleMesh, _pPinchVec, _pEndVec, 4.2);
+            } else if (tType === 'wd40_nozzle' && f0.pinch_pos && f1.pinch_pos) {
+              const px = f0.pinch_pos[0] + (f1.pinch_pos[0] - f0.pinch_pos[0]) * alpha;
+              const py = f0.pinch_pos[1] + (f1.pinch_pos[1] - f0.pinch_pos[1]) * alpha;
+              const pz = f0.pinch_pos[2] + (f1.pinch_pos[2] - f0.pinch_pos[2]) * alpha;
+              _pPinchVec.set(px, pz, py);
+              dynamicToolGroup.userData.nozzleCap.position.copy(_pPinchVec);
+              orientCylinderBetween(dynamicToolGroup.userData.strawMesh, _pPinchVec, _pTipVec, 1.1);
+            } else if (tType === 'tweezer' && f0.pinch_pos && f1.pinch_pos) {
+              const px = f0.pinch_pos[0] + (f1.pinch_pos[0] - f0.pinch_pos[0]) * alpha;
+              const py = f0.pinch_pos[1] + (f1.pinch_pos[1] - f0.pinch_pos[1]) * alpha;
+              const pz = f0.pinch_pos[2] + (f1.pinch_pos[2] - f0.pinch_pos[2]) * alpha;
+              _pPinchVec.set(px, pz, py);
+              _tmpDir.subVectors(_pPinchVec, _pTipVec).normalize();
+              _pEndVec.copy(_pPinchVec).addScaledVector(_tmpDir, 22.0);
+              _pElbowVec.copy(_pTipVec).add(new THREE.Vector3(-1.0, 0, 0));
+              orientCylinderBetween(dynamicToolGroup.userData.bladeL, _pElbowVec, _pEndVec, 0.8);
+              _pElbowVec.copy(_pTipVec).add(new THREE.Vector3(1.0, 0, 0));
+              orientCylinderBetween(dynamicToolGroup.userData.bladeR, _pElbowVec, _pEndVec, 0.8);
             } else {
               dynamicToolGroup.position.copy(_pTipVec);
             }

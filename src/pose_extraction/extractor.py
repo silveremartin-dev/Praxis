@@ -321,14 +321,11 @@ class VideoPoseExtractor:
                 12.0 * (1.0 - s_u) + 5.5 * s_u,
                 -10.0 * (1.0 - s_u) + 33.0 * s_u
             ])
-            rh_palm_offset = np.array([32.0, -4.0, -14.0])
-            rh_index_target = lock_to_world(pinch_local + np.array([0.0, 1.0, 2.2]))
-            rh_thumb_target = lock_to_world(pinch_local + np.array([0.0, 2.5, -2.2]))
             rh_curls = {
-                "index": (0.35, 0.45, 0.25),
-                "middle": (0.95, 1.10, 0.70),
-                "ring": (1.05, 1.18, 0.75),
-                "pinky": (1.15, 1.25, 0.80),
+                "index": (0.55, 0.68, 0.38),   # Natural thumb-index precision pinch arch (zero hyperextension)
+                "middle": (0.98, 1.12, 0.72),
+                "ring": (1.08, 1.20, 0.78),
+                "pinky": (1.16, 1.26, 0.82),
             }
 
         elif t < 0.38:
@@ -346,14 +343,11 @@ class VideoPoseExtractor:
                 5.5,
                 33.0
             ])
-            rh_palm_offset = np.array([32.0, -4.0, -14.0])
-            rh_index_target = lock_to_world(pinch_local + np.array([0.0, 1.0, 2.2]))
-            rh_thumb_target = lock_to_world(pinch_local + np.array([0.0, 2.5, -2.2]))
             rh_curls = {
-                "index": (0.35, 0.45, 0.25),
-                "middle": (0.95, 1.10, 0.70),
-                "ring": (1.05, 1.18, 0.75),
-                "pinky": (1.15, 1.25, 0.80),
+                "index": (0.55, 0.68, 0.38),   # Opposing thumb-index precision pinch on needle
+                "middle": (0.98, 1.12, 0.72),
+                "ring": (1.08, 1.20, 0.78),
+                "pinky": (1.16, 1.26, 0.82),
             }
 
         elif t < 0.53:
@@ -371,14 +365,11 @@ class VideoPoseExtractor:
                 5.5,
                 33.0 - 3.0 * s_u
             ])
-            rh_palm_offset = np.array([32.0, -4.0, -14.0])
-            rh_index_target = lock_to_world(pinch_local + np.array([0.0, 1.0, 2.2]))
-            rh_thumb_target = lock_to_world(pinch_local + np.array([0.0, 2.5, -2.2]))
             rh_curls = {
-                "index": (0.35, 0.45, 0.25),
-                "middle": (0.95, 1.10, 0.70),
-                "ring": (1.05, 1.18, 0.75),
-                "pinky": (1.15, 1.25, 0.80),
+                "index": (0.55, 0.68, 0.38),
+                "middle": (0.98, 1.12, 0.72),
+                "ring": (1.08, 1.20, 0.78),
+                "pinky": (1.16, 1.26, 0.82),
             }
 
         elif t < 0.62:
@@ -396,15 +387,11 @@ class VideoPoseExtractor:
                 7.0 + 4.0 * u,
                 30.0 - drop_z * 1.15
             ])
-            hand_anchor = lock_to_world(np.array([38.0, 8.0, 28.0 - 40.0 * u]))
-            rh_palm_offset = np.array([30.0, -2.0, -14.0])
-            rh_index_target = hand_anchor + np.array([-4.0, 2.0, 6.0 + 6.0 * u])
-            rh_thumb_target = hand_anchor + np.array([2.0, 4.0, -6.0 - 8.0 * u])
             rh_curls = {
-                "index": (0.25, 0.35, 0.20),
-                "middle": (0.95, 1.10, 0.70),
-                "ring": (1.05, 1.18, 0.75),
-                "pinky": (1.15, 1.25, 0.80),
+                "index": (0.22, 0.28, 0.16),   # Opening pinch to release needle
+                "middle": (0.98, 1.12, 0.72),
+                "ring": (1.08, 1.20, 0.78),
+                "pinky": (1.16, 1.26, 0.82),
             }
             needle_visible = True
 
@@ -424,17 +411,13 @@ class VideoPoseExtractor:
                 15.0 * (1.0 - s_app) + 12.5 * s_app,
                 -10.0 * (1.0 - s_app) + (9.0 + tap_osc) * s_app
             ])
-            rh_index_target = lock_to_world(index_tap_local)
-
-            pinch_local = index_tap_local + np.array([18.0, 2.0, -16.0])
-            rh_palm_offset = np.array([24.0, 0.0, -14.0])
-            rh_thumb_target = lock_to_world(index_tap_local + np.array([10.0, 6.0, -10.0]))
+            pinch_local = index_tap_local
             tip_local = index_tap_local
             rh_curls = {
-                "index": (0.06, 0.08, 0.04),   # Fully extended pointing index finger!
-                "middle": (1.00, 1.15, 0.75),  # Curled into palm
-                "ring": (1.10, 1.20, 0.80),
-                "pinky": (1.15, 1.25, 0.85),
+                "index": (0.08, 0.10, 0.06),   # Extended pointing index finger (gentle natural curve, zero hyperextension)
+                "middle": (1.02, 1.16, 0.76),  # Curled into palm
+                "ring": (1.10, 1.22, 0.80),
+                "pinky": (1.18, 1.28, 0.84),
             }
 
         tip_world = lock_to_world(tip_local)
@@ -444,22 +427,62 @@ class VideoPoseExtractor:
             probe_parts = ParametricCADBuilder.build_l_shaped_probe(tip_world, pinch_world)
             scene_meshes.extend(probe_parts)
 
-        # Build Connected Right Hand (Anatomically aligned: +X_rh = Index/Thumb side UP +Z_lock)
-        rh_palm_world = pinch_world + R_lock @ rh_palm_offset
-
+        # Build Connected Right Hand with true anatomical precision-pinch orientation:
+        # +Z_rh (distal axis): points left and slightly up toward the lock collar
+        # +Y_rh (palmar flexion axis): points downward (-Z_lock) and left so Index curls DOWN onto the needle
+        #                              while Thumb opposes UP from below!
+        # +X_rh = Y_rh x Z_rh: points forward (+Y_lock) and slightly up so Index/Thumb are on the front/top side.
         if t < 0.62:
-            z_rh = np.array([-0.82, 0.18, 0.54])
-            x_rh = np.array([0.48, 0.28, 0.83])
+            z_rh = np.array([-0.95, -0.08, 0.30])
+            y_rh = np.array([-0.30, 0.22, -0.93])
         else:
-            z_rh = np.array([-0.68, 0.25, 0.69])
-            x_rh = np.array([0.55, 0.30, 0.78])
+            z_rh = np.array([-0.92, -0.15, 0.36])
+            y_rh = np.array([-0.36, 0.25, -0.90])
 
         z_rh /= np.linalg.norm(z_rh)
-        x_rh = x_rh - np.dot(x_rh, z_rh) * z_rh
+        y_rh = y_rh - np.dot(y_rh, z_rh) * z_rh
+        y_rh /= np.linalg.norm(y_rh)
+        x_rh = np.cross(y_rh, z_rh)
         x_rh /= np.linalg.norm(x_rh)
-        y_rh = np.cross(z_rh, x_rh)
         R_rh_local = np.column_stack([x_rh, y_rh, z_rh])
         R_rh_world = R_lock @ R_rh_local
+
+        # Compute exact local Index fingertip position for the current physiological curl
+        # so that the palm center places the Index fingertip directly on the top pinch pad (t < 0.62)
+        # or on the padlock tap target (t >= 0.62) without any IK distortion!
+        s_rh = 0.84
+        idx_mcp_c, idx_pip_c, idx_dip_c = rh_curls["index"]
+        sp_idx = 0.05
+        p_idx_mcp_loc = np.array([15.5 * s_rh, (15.5 / 18.0 * 1.8 + 0.05 * idx_mcp_c * 8.0) * s_rh, 22.0 * s_rh])
+        d1_i = np.array([np.sin(sp_idx), np.sin(idx_mcp_c), np.cos(idx_mcp_c) * np.cos(sp_idx)])
+        d1_i /= np.linalg.norm(d1_i)
+        p_idx_pip_loc = p_idx_mcp_loc + d1_i * (24.0 * s_rh)
+        a2_i = idx_mcp_c + idx_pip_c
+        d2_i = np.array([np.sin(sp_idx) * 0.5, np.sin(a2_i), np.cos(a2_i)])
+        d2_i /= np.linalg.norm(d2_i)
+        p_idx_dip_loc = p_idx_pip_loc + d2_i * (16.0 * s_rh)
+        a3_i = a2_i + idx_dip_c
+        d3_i = np.array([0.0, np.sin(a3_i), np.cos(a3_i)])
+        d3_i /= np.linalg.norm(d3_i)
+        p_idx_tip_loc = p_idx_dip_loc + d3_i * (12.0 * s_rh)
+
+        if t < 0.53:
+            # Index pulp sits directly on top of the needle pinch point; Thumb pulp presses from underneath
+            desired_idx_tip_world = lock_to_world(pinch_local + np.array([0.0, 0.4, 1.5]))
+            rh_thumb_target = lock_to_world(pinch_local + np.array([1.0, 1.2, -1.8]))
+        elif t < 0.62:
+            # Pinch opens as needle drops
+            u_rel = (t - 0.53) / 0.09
+            hand_anchor = lock_to_world(np.array([38.0, 8.0, 28.0 - 24.0 * u_rel]))
+            desired_idx_tip_world = hand_anchor + np.array([-2.0, 1.0, 5.0 + 4.0 * u_rel])
+            rh_thumb_target = hand_anchor + np.array([3.0, 2.5, -5.0 - 4.0 * u_rel])
+        else:
+            # Phase 5: Extended Right Index fingertip points & taps padlock body; Thumb tucked below index
+            desired_idx_tip_world = lock_to_world(index_tap_local)
+            rh_thumb_target = lock_to_world(index_tap_local + np.array([14.0, 4.0, -14.0]))
+
+        rh_palm_world = desired_idx_tip_world - (R_rh_world @ p_idx_tip_loc)
+        rh_index_target = desired_idx_tip_world
 
         if use_robot_hands:
             rh_robot = DexterousRobotHandModel(is_left_hand=False, scale=0.84)
@@ -468,7 +491,6 @@ class VideoPoseExtractor:
                 palm_rot=R_rh_world,
                 finger_curls=rh_curls,
                 thumb_tip_target_world=rh_thumb_target,
-                index_tip_target_world=rh_index_target,
             )
             raw_hand_meshes.extend(rh_meshes)
         else:
@@ -478,7 +500,6 @@ class VideoPoseExtractor:
                 palm_rot=R_rh_world,
                 finger_curls=rh_curls,
                 thumb_tip_target_world=rh_thumb_target,
-                index_tip_target_world=rh_index_target,
             )
             for m, ptype in rh_parts:
                 color = "#f0b499" if "thumb" in ptype or ptype == "tip" else "#d68f70"
