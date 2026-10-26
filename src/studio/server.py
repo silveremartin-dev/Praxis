@@ -176,6 +176,60 @@ CLIPS_CATALOG = [
             {"time_range": "3.5s - 7.5s", "name": "2. Lateral Dovetail Slide Outward", "needle_active": False},
             {"time_range": "7.5s - 11.0s", "name": "3. Component Lift & Transfer", "needle_active": False}
         ]
+    },
+    {
+        "id": "02_ifixit_dualsense",
+        "title": "iFixit DualSense — Battery Harness & Screwdriver Detachment",
+        "channel": "iFixit",
+        "category": "Consumer Electronics Teardown",
+        "video_url": "/data/clips/02_iFixit_DualSense_6K_jcXrtrx8_clip_118s_130s.mp4",
+        "obj_url": "/data/processed/02_ifixit_dualsense_scene_3d.obj",
+        "parquet_url": None,
+        "metadata_url": "/data/processed/02_ifixit_dualsense_metadata.json",
+        "mujoco_xml_url": None,
+        "comparison_img": None,
+        "animation_gif": None,
+        "decomposition_img": None,
+        "duration_sec": 12.01,
+        "fps": 23.98,
+        "total_frames": 288,
+        "action_verb": "Pencil grip screwdriver unscrewing battery harness boss",
+        "workpiece": "DualSense battery pack (50x34x10mm, 42g)",
+        "tool": "Precision screwdriver (iFixit driver, 85mm stem)",
+        "hand_engagement": "Bimanual (Left hand stabilizing shell, Right hand driving tool)",
+        "sdf_status": "Certified (SDF >= 0.0mm, zero collision)",
+        "phases": [
+            {"time_range": "0.0s - 3.5s", "name": "1. Chassis Alignment & Tool Positioning", "needle_active": False},
+            {"time_range": "3.5s - 8.0s", "name": "2. Precision Screwdriver Engagement", "needle_active": False},
+            {"time_range": "8.0s - 12.0s", "name": "3. Battery Harness Detachment", "needle_active": False}
+        ]
+    },
+    {
+        "id": "03_diy_cementwd40",
+        "title": "WD-40 Canister — Power Wrap & High-Force Nozzle Actuation",
+        "channel": "DIY Creators",
+        "category": "Aerosol Fluid Lubrication",
+        "video_url": "/data/clips/03_DIY_CementWD40_mA3QtWz7RMQ_clip_175s_188s.mp4",
+        "obj_url": "/data/processed/03_diy_cementwd40_scene_3d.obj",
+        "parquet_url": None,
+        "metadata_url": "/data/processed/03_diy_cementwd40_metadata.json",
+        "mujoco_xml_url": None,
+        "comparison_img": None,
+        "animation_gif": None,
+        "decomposition_img": None,
+        "duration_sec": 13.0,
+        "fps": 30.0,
+        "total_frames": 390,
+        "action_verb": "Bimanual cylindrical power grasp and index nozzle compression",
+        "workpiece": "WD-40 Aerosol Can (66x175mm, 380g)",
+        "tool": "Nozzle spray actuator and red straw",
+        "hand_engagement": "Bimanual (Left hand power wrap, Right index pressing)",
+        "sdf_status": "Certified (SDF >= 0.0mm, cylindrical manifold sealed)",
+        "phases": [
+            {"time_range": "0.0s - 4.0s", "name": "1. Cylindrical Canister Power Grasp", "needle_active": False},
+            {"time_range": "4.0s - 9.0s", "name": "2. Index Finger Nozzle Depression (Spray)", "needle_active": False},
+            {"time_range": "9.0s - 13.0s", "name": "3. Spray Release & Canister Re-position", "needle_active": False}
+        ]
     }
 ]
 

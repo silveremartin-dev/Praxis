@@ -750,6 +750,13 @@
       camera = new THREE.PerspectiveCamera(45, w / h, 0.1, 1000);
       // Place camera in front of the front face (Z < 0) looking at center
       camera.position.set(0, 30, -220);
+
+      // Lightweight WebGL Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+      container.appendChild(renderer.domElement);
+
       controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.target.set(0, 10, 0);
       controls.enableDamping = true;
@@ -830,6 +837,7 @@
     async function selectClip(clipId) {
       currentClip = clipsCatalog.find(c => c.id === clipId);
       if (!currentClip) return;
+      clipSelect.value = clipId;
 
       // Update Native Video Player
       videoPlayer.src = currentClip.video_url;
@@ -900,7 +908,17 @@
       workpieceMesh = null;
 
       if (meshCache[clipId]) {
-        applyEmbodimentMaterialsAndMount(meshCache[clipId].clone());
+        const cachedObj = meshCache[clipId].clone();
+        const box = new THREE.Box3().setFromObject(cachedObj);
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fov = (camera.fov || 45) * (Math.PI / 180);
+        const cameraDistance = Math.max(160, Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5);
+        camera.position.set(0, maxDim * 0.2, -cameraDistance);
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        applyEmbodimentMaterialsAndMount(cachedObj);
         return;
       }
 
@@ -912,8 +930,16 @@
           obj.rotation.x = -Math.PI / 2;
           const box = new THREE.Box3().setFromObject(obj);
           const center = box.getCenter(new THREE.Vector3());
+          const size = box.getSize(new THREE.Vector3());
           obj.position.sub(center);
-          obj.position.y += 10;
+
+          // Auto-frame camera based on actual bounding dimensions
+          const maxDim = Math.max(size.x, size.y, size.z);
+          const fov = (camera.fov || 45) * (Math.PI / 180);
+          const cameraDistance = Math.max(160, Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5);
+          camera.position.set(0, maxDim * 0.2, -cameraDistance);
+          controls.target.set(0, 0, 0);
+          controls.update();
 
           meshCache[clipId] = obj;
           applyEmbodimentMaterialsAndMount(obj.clone());

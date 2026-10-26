@@ -17,6 +17,10 @@ from src.pose_extraction.extractor import (
     FrameVisionFeatures,
     VideoPoseExtractor,
 )
+from src.pose_extraction.metric_anchoring import (
+    MetricScaleEstimator,
+    MetricEstimationResult,
+)
 
 # For backwards compatibility
 create_smooth_segment = create_smooth_capsule
@@ -32,4 +36,6 @@ __all__ = [
     "create_cylinder",
     "FrameVisionFeatures",
     "VideoPoseExtractor",
+    "MetricScaleEstimator",
+    "MetricEstimationResult",
 ]
