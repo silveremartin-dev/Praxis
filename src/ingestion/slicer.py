@@ -38,9 +38,10 @@ def slice_action_video(
     end_frame = int(t_end * fps)
     total_clip_frames = end_frame - start_frame
     
-    # Use mp4v codec for universal cross-platform compatibility
+    # Write initial frames via OpenCV
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(output_clip_path, fourcc, fps, (width, height))
+    temp_clip_path = output_clip_path + ".raw.mp4"
+    out = cv2.VideoWriter(temp_clip_path, fourcc, fps, (width, height))
     
     cap.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
     current_frame = start_frame
@@ -56,6 +57,30 @@ def slice_action_video(
         
     cap.release()
     out.release()
+
+    # Transcode to web-standard H.264 (avc1) for instant browser playback
+    try:
+        import subprocess
+        import imageio_ffmpeg
+        ffmpeg_bin = imageio_ffmpeg.get_ffmpeg_exe()
+        cmd = [
+            ffmpeg_bin, "-y", "-i", temp_clip_path,
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "22",
+            "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+            output_clip_path
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True)
+        if res.returncode == 0 and os.path.exists(output_clip_path):
+            if os.path.exists(temp_clip_path):
+                os.remove(temp_clip_path)
+        else:
+            # Fallback to raw if ffmpeg failed
+            if os.path.exists(temp_clip_path):
+                os.replace(temp_clip_path, output_clip_path)
+    except Exception as e:
+        print(f"[!] Warning: H.264 transcoding skipped ({e}), using OpenCV output.")
+        if os.path.exists(temp_clip_path):
+            os.replace(temp_clip_path, output_clip_path)
     
     actual_duration = written_count / fps if fps > 0 else 0
     print(f"[+] Sub-video successfully sliced: {output_clip_path}")

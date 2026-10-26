@@ -162,3 +162,93 @@ class MuJoCoVerifier:
             final_object_position_m=final_pos
         )
 
+    def simulate_trajectory(
+        self,
+        scene_id: str,
+        duration_sec: float = 0.6,
+        sample_fps: int = 30,
+        impulse_n: float = 0.0
+    ) -> Dict:
+        """
+        Runs forward dynamics in MuJoCo and records the 3D trajectory (positions, quaternions, contacts)
+        sampled at `sample_fps` for WebGL 3D playback in the browser.
+        """
+        mjcf_str = self.generate_mjcf_scene(scene_id)
+        model = mujoco.MjModel.from_xml_string(mjcf_str)
+        data = mujoco.MjData(model)
+
+        steps_per_sample = max(1, int(1.0 / (sample_fps * self.timestep)))
+        total_steps = int(duration_sec / self.timestep)
+
+        body_names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, i) for i in range(model.nbody)]
+
+        trajectory = []
+        max_vel = 0.0
+        max_pen_mm = 0.0
+        explosion = False
+
+        for step in range(total_steps):
+            t_current = step * self.timestep
+
+            # Apply external disturbance impulse if requested (around t = 0.05s)
+            if impulse_n > 0.0 and 0.04 <= t_current <= 0.08:
+                if len(data.qfrc_applied) >= 3:
+                    data.qfrc_applied[0] = impulse_n * 0.4
+                    data.qfrc_applied[2] = impulse_n
+
+            mujoco.mj_step(model, data)
+
+            if len(data.qvel) > 0:
+                cur_v = float(np.max(np.abs(data.qvel)))
+                if cur_v > max_vel:
+                    max_vel = cur_v
+                if cur_v > 10.0 or np.isnan(cur_v):
+                    explosion = True
+                    break
+
+            for c_i in range(data.ncon):
+                pen_mm = float(-data.contact[c_i].dist * 1000.0)
+                if pen_mm > max_pen_mm:
+                    max_pen_mm = pen_mm
+
+            if step % steps_per_sample == 0:
+                frame_data = {
+                    "time": round(t_current, 3),
+                    "bodies": {},
+                    "contacts": []
+                }
+                for b_i in range(1, model.nbody):
+                    b_name = body_names[b_i] or f"body_{b_i}"
+                    pos = data.xpos[b_i].tolist()
+                    quat = data.xquat[b_i].tolist()
+                    frame_data["bodies"][b_name] = {
+                        "pos_mm": [round(pos[0] * 1000.0, 2), round(pos[1] * 1000.0, 2), round(pos[2] * 1000.0, 2)],
+                        "quat": [round(q, 4) for q in quat]
+                    }
+
+                for c_i in range(min(data.ncon, 6)):
+                    c_pos = data.contact[c_i].pos.tolist()
+                    frame_data["contacts"].append([
+                        round(c_pos[0] * 1000.0, 2),
+                        round(c_pos[1] * 1000.0, 2),
+                        round(c_pos[2] * 1000.0, 2)
+                    ])
+
+                trajectory.append(frame_data)
+
+        is_stable = (not explosion) and (max_vel < 10.0) and (max_pen_mm < 25.0)
+
+        return {
+            "scene_id": scene_id,
+            "duration_sec": duration_sec,
+            "sample_fps": sample_fps,
+            "total_frames": len(trajectory),
+            "is_dynamically_stable": is_stable,
+            "max_velocity_m_s": round(max_vel, 3),
+            "max_contact_penetration_mm": round(max_pen_mm, 3),
+            "numerical_explosion_detected": explosion,
+            "physics_engine": "MuJoCo 3.x (Native C Library)",
+            "status": "PASS: Certified dynamically stable demonstration" if is_stable else "FAIL: Instability detected",
+            "trajectory": trajectory
+        }
+

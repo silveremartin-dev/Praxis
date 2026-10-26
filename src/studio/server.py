@@ -293,23 +293,16 @@ def get_clip_pose(clip_id: str, progress: float = 0.5):
 def simulate_mujoco(req: MuJoCoSimRequest):
     """
     Runs native MuJoCo forward dynamics stepping on the selected scene
-    and returns mechanical stability metrics and telemetry.
+    and returns mechanical stability metrics, contact points, and 3D frame trajectory.
     """
     try:
-        res = mujoco_verifier.verify_scene_stability(req.scene_id, duration_sec=req.duration_sec)
-        return JSONResponse({
-            "scene_id": res.scene_name,
-            "is_dynamically_stable": res.is_dynamically_stable,
-            "simulated_duration_seconds": res.simulated_duration_seconds,
-            "max_velocity_m_s": res.max_velocity_m_s,
-            "max_contact_penetration_mm": res.max_contact_penetration_mm,
-            "numerical_explosion_detected": res.numerical_explosion_detected,
-            "final_object_position_m": res.final_object_position_m.tolist(),
-            "physics_engine": "MuJoCo 3.x (Native C Library)",
-            "timestep_sec": 0.002,
-            "gravity": [0.0, 0.0, -9.81],
-            "status": "PASS: Certified dynamically stable demonstration" if res.is_dynamically_stable else "FAIL: Instability detected"
-        })
+        traj_data = mujoco_verifier.simulate_trajectory(
+            scene_id=req.scene_id,
+            duration_sec=req.duration_sec,
+            sample_fps=30,
+            impulse_n=req.impulse_n
+        )
+        return JSONResponse(traj_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
