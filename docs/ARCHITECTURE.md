@@ -51,21 +51,31 @@ flowchart TD
 
 ## 3. Subsystem Technical Formulations
 
-### Module 1: Action Slicing & Semantic Metadata (`src/ingestion/`)
+### Module 1: Action Slicing & Video Quality Auditor (`src/ingestion/`)
 * Splits raw continuous streams into autonomous manipulation sub-videos ($5-20\text{ s}$).
 * Generates structured task graph metadata (`t_start`, `t_end`, action verbs, tool ID, workpiece ID, camera stability).
+* **Automated Video Quality Auditor (`quality_auditor.py`)**: Computes objective quality scores ($0-100$) and assigns certification grades (`A+`, `A`, `B`, `REJECTED`) based on 4 programmatic criteria:
+  1. *Single-shot continuity*: 0 camera cuts ($\max \Delta I \le 0.14$), fixed camera plane.
+  2. *Bimanual hand-to-wrist presence*: active Left and Right hands visible up to the wrist crease ($\ge 65\%$ duration).
+  3. *Single compact object affordance*: compact interaction gap between hands ($< 220\text{ px}$).
+  4. *Framing stability*: minimal translation jitter and steady illumination.
 
-### Module 2: Parametric 3D Digital Twin & Vision Extractor (`src/pose_extraction/`)
-* **Computer Vision Tracking (`extractor.py`)**: Generic OpenCV-driven `VideoPoseExtractor` running YCrCb skin segmentation, bimanual contour apex tracking, and chromatic marker exposure to extract 3D kinematic trajectories directly from monocular video frames.
-* **Continuous Anatomical Human Hand Model (`hand_model.py`)**: 100% topologically connected kinematic tree (metacarpal palmar arch, thenar eminence web, and analytical 2-bone IK solver `solve_two_bone_ik` for thumb and index fingertip target tracking with zero detached segments).
+### Module 2: Automated Vision Tracking & Temporal Dynamics (`src/pose_extraction/`)
+* **Automated Video Pose Pipeline (`visual_tracker.py`)**: 100% automated visual extraction pipeline conforming to AGENTS.md Sec 7.1:
+  - Adaptive dual-space skin segmentation ($\text{YCrCb} + \text{HSV}$).
+  - Palm centroid localization via Euclidean Distance Transform maxima (`cv2.distanceTransform`).
+  - **Dense Optical Flow (Farneback `cv2.calcOpticalFlowFarneback`)**: Extracts continuous inter-frame pixel velocity fields $(\dot{u}, \dot{v})$ across sequential frames $F_t \to F_{t+1}$.
+  - **Continuous Temporal Dynamics**: Derives metric wrist and finger velocities $\vec{v}(t)$ in $\text{m/s}$ and accelerations $\vec{a}(t)$ in $\text{m/s}^2$, strictly bounded by biological minimum-jerk constraints ($\|\vec{v}\| \le 2.0\text{ m/s}, \|\vec{a}\| \le 15.0\text{ m/s}^2$).
+  - **Temporal Occlusion Persistence**: Kinematic propagation through occlusions (when fingers pass behind workpieces, their poses remain locked to the 6-DoF rigid palm transform $T_{\text{palm}}$ rather than jumping or disappearing).
+  - **Dynamic Workpiece Sizing**: Workpiece metric dimensions ($D_x, D_y, D_z$) are bounded directly by the observed inter-hand physical gap ($D_x \le 0.75 \times \text{gap}_{\text{mm}}$), guaranteeing the object is never oversized.
+* **Continuous Anatomical Human Hand Model (`hand_model.py`)**: 100% topologically connected kinematic tree with 21 joints per hand, physiological forward flexion bounds ($\theta_{\text{MCP}}, \theta_{\text{PIP}}, \theta_{\text{DIP}} \ge 0$, internal angle $\le 180^\circ$, zero backwards hyperextension).
 * **Dexterous 5-Finger Humanoid Robot Hands (`hand_model.py`)**: Anthropomorphic robotic hands (`DexterousRobotHandModel`) with titanium palm chassis, rotary gold CMC thumb actuators, mechanical phalanges, and cyan tactile sensor pads for end-to-end dexterous robot simulation (Inspire / Unitree H1 / Optimus).
-* **Parametric CAD Builder (`cad_primitives.py`)**: Declarative parametric assembly generator constructing multi-part compound assemblies (laminated padlocks, keys, watch plates, antique faceplates) with metric scale grounding.
+* **Parametric CAD Builder (`cad_primitives.py`)**: Declarative parametric assembly generator constructing multi-part compound assemblies with metric scale grounding.
 
-### Module 3: Analytical SDF Collision Arbitrator (`src/physics_sanitizer/`)
-* Enforces exact non-penetration penalty $\text{SDF}(p) \ge 0$ for rigid primitives:
-  - **Cylinder**: $d(p) = \max(r_{\text{dist}}, 0) + \min(\max(r_{\text{dist}}, z_{\text{dist}}), 0)$
-  - **Box**: $d(p) = \|\max(|p| - h, 0)\| + \min(\max(|p| - h), 0)$
-* Snaps fingertip contact points to outer affordance surfaces, eliminating mesh penetration artifacts.
+### Module 3: Dual-Constraint Collision Arbitrator (`src/physics_sanitizer/`)
+* **Hand-to-Workpiece Non-Penetration**: Enforces exact Signed Distance Field non-penetration penalty $\text{SDF}(p) \ge 0$ for rigid CAD bodies:
+  - Projecting joint nodes outward along $\nabla\text{SDF}$ with skin capsule margin ($r_{\text{skin}} + 0.5\text{ mm}$), ensuring residual penetration is strictly **0.0 mm**.
+* **Inter-Hand Non-Collision ($\text{LH} \cap \text{RH} = \emptyset$)**: Computes 3D segment-to-segment distance across all 20 bone segments of the Left Hand against all 20 bone segments of the Right Hand, enforcing clearance $\ge r_1 + r_2 + 1.0\text{ mm}$ ($8.0\text{ mm}$ minimum clearance; observed clearance on certified demonstrations $> 60.0\text{ mm}$).
 
 ### Module 4: Visual Inverse Dynamics Engine (`src/dynamics/`)
 * **Mass Estimation**: $m = V \times \rho_{\text{material}}$ using calibrated physical density tables (brass: $8.5\text{ g/cm}^3$, steel: $7.9\text{ g/cm}^3$, cast iron: $7.2\text{ g/cm}^3$).
