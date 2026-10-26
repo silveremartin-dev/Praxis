@@ -226,10 +226,10 @@ class VideoPoseExtractor:
         else:
             l_thumb_slide = 1.0
 
-        # Left palm sits behind and to the left of the padlock body (X <= -25mm, Y <= -16mm), angled so:
-        # - Fingers wrap across the back surface (Y <= -13.5mm, strictly outside padlock back at Y = -9.5mm)
-        # - The thumb wraps around the left edge to the front face (Y >= +13.5mm, strictly on the front face)
-        lh_palm_world = lock_to_world(np.array([-25.0, -16.5, 7.0 - 3.0 * l_thumb_slide]))
+        # Left palm sits behind and to the left of the padlock body (X <= -27mm, Y <= -18mm), angled so:
+        # - Fingers wrap across the back surface (Y <= -14.0mm, strictly outside padlock back at Y = -11.0mm)
+        # - The thumb wraps around the left edge to the front face (Y >= +16.0mm, strictly on the front face)
+        lh_palm_world = lock_to_world(np.array([-27.0, -18.0, 7.0 - 3.0 * l_thumb_slide]))
 
         # Orthonormal basis for Left Hand:
         # +Z_lh (finger direction): up and right along back face `[0.45, -0.05, 0.89]`
@@ -245,10 +245,10 @@ class VideoPoseExtractor:
         R_lh_world = R_lock @ R_lh_local
 
         # Target 3D position for the connected Left Thumb Tip on the front face of the padlock:
-        # Padlock front face is at Y_local = +9.5mm. Thumb center at Y = +14.5mm guarantees zero penetration.
+        # Padlock front face is at Y_local = +11.0mm. Thumb center at Y = +16.0mm guarantees zero penetration.
         lh_thumb_target_world = lock_to_world(np.array([
             5.0 - 2.0 * l_thumb_slide,
-            14.5,
+            16.0,
             11.5 - 12.5 * l_thumb_slide
         ]))
 
@@ -479,8 +479,8 @@ class VideoPoseExtractor:
         def world_lock_sdf(pts_world: np.ndarray) -> np.ndarray:
             p_w = np.atleast_2d(pts_world)
             p_loc = (p_w - lock_pos) @ R_lock
-            p_box = p_loc - np.array([0.0, 0.0, 17.5])
-            return sdf_box(p_box, np.array([20.0, 9.5, 17.5]))
+            p_box = p_loc - np.array([0.0, 0.0, 19.0])
+            return sdf_box(p_box, np.array([22.0, 11.0, 19.0]))
 
         sanitizer = PhysicsSanitizer(default_contact_margin_mm=0.0)
         hand_length_mm = 184.0 * 0.86

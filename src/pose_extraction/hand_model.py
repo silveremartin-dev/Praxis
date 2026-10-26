@@ -329,17 +329,17 @@ class AnatomicalHandModel:
             vec_to_t = th_target_local - p_cmc
             dist_to_t = float(np.linalg.norm(vec_to_t))
             dir_to_t = vec_to_t / max(dist_to_t, 1e-5)
-            # Bias thenar cleanly outward in radial X to wrap around outer surface
-            thenar_dir = 0.70 * dir_to_t + 0.30 * np.array([0.7 * sign, 0.5, 0.1])
+            # Route thenar cleanly outside workpiece boundary around the lateral flank
+            thenar_dir = 0.50 * dir_to_t + 0.50 * np.array([1.2 * sign, 0.7, 0.2])
             thenar_dir /= max(float(np.linalg.norm(thenar_dir)), 1e-5)
-            p_thenar_mcp = p_cmc + thenar_dir * (22.0 * s)
+            p_thenar_mcp = p_cmc + thenar_dir * (24.0 * s)
 
             p_th_ip, p_th_tip = solve_two_bone_ik(
                 p_thenar_mcp,
                 th_target_local,
                 l_th_prox,
                 l_th_dist,
-                bend_normal=np.array([0.5 * sign, 0.6, -0.3])
+                bend_normal=np.array([1.4 * sign, 0.8, 0.1])
             )
         else:
             if thumb_angles is None:

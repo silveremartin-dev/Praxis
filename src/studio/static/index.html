@@ -781,9 +781,11 @@
       scene.add(grid);
 
       sceneGroup = new THREE.Group();
+      sceneGroup.scale.x = -1; // Invert horizontal X so Left Hand renders on screen LEFT and Right Hand on screen RIGHT (matching video)
       scene.add(sceneGroup);
 
       contactMarkersGroup = new THREE.Group();
+      contactMarkersGroup.scale.x = -1;
       scene.add(contactMarkersGroup);
 
       function animate() {
@@ -957,21 +959,24 @@
         color: isRobot ? 0x38bdf8 : 0xdfb498,
         specular: isRobot ? 0x22d3ee : 0x475569,
         shininess: isRobot ? 60 : 15,
-        wireframe: isWireframe
+        wireframe: isWireframe,
+        side: THREE.DoubleSide
       });
 
       const lockMat = new THREE.MeshPhongMaterial({
         color: 0xd4af37,
         specular: 0xfef08a,
         shininess: 70,
-        wireframe: isWireframe
+        wireframe: isWireframe,
+        side: THREE.DoubleSide
       });
 
       const toolMat = new THREE.MeshPhongMaterial({
         color: 0x94a3b8,
         specular: 0xffffff,
         shininess: 80,
-        wireframe: isWireframe
+        wireframe: isWireframe,
+        side: THREE.DoubleSide
       });
 
       obj.traverse((child) => {
