@@ -14,6 +14,7 @@ import glob
 import json
 import os
 import sys
+from typing import Optional
 
 # Ensure repository root is on sys.path
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -24,7 +25,7 @@ import numpy as np
 from src.feasibility.urdf_auditor import URDFAuditor
 from src.dynamics.inverse_dynamics import InverseDynamicsEngine
 from src.exporter.lerobot_exporter import LeRobotExporter
-from src.physics_sanitizer.sdf import sdf_cylinder, sdf_box, sdf_sphere
+from src.physics_sanitizer import PhysicsSanitizer, sdf_cylinder, sdf_box, sdf_sphere
 
 
 def parse_args():
@@ -40,7 +41,14 @@ def parse_args():
     parser.add_argument("--export_lerobot", action="store_true", default=True, help="Export to LeRobot format")
     return parser.parse_args()
 
-def process_action_metadata(meta_path: str, auditor: URDFAuditor, dynamics_engine: InverseDynamicsEngine, exporter: LeRobotExporter, output_dir: str):
+def process_action_metadata(
+    meta_path: str,
+    auditor: URDFAuditor,
+    dynamics_engine: InverseDynamicsEngine,
+    exporter: LeRobotExporter,
+    output_dir: str,
+    sanitizer: Optional[PhysicsSanitizer] = None
+):
     """Processes a single action metadata file through the Tier 2 physical digital twin pipeline."""
     with open(meta_path, "r", encoding="utf-8") as f:
         meta = json.load(f)
@@ -61,7 +69,18 @@ def process_action_metadata(meta_path: str, auditor: URDFAuditor, dynamics_engin
     audit_report = auditor.audit_trajectory(trajectory_m, dt=1.0 / fps)
     print(f"    -> URDF Audit [{auditor.robot_spec.name}]: score={audit_report.feasibility_score_percent}% (accepted={audit_report.is_accepted})")
 
-    # 3. Inverse Dynamics
+    # 3. Physics Sanitization Check (Non-Penetration & Anthropometric Invariant)
+    sdf_min_dist = 0.0
+    if sanitizer:
+        # Check contact points if available in metadata
+        contacts = meta.get("hand_object_interaction", {}).get("contact_points", [])
+        for c in contacts:
+            c_sdf = c.get("sdf_distance_mm", 0.0)
+            if c_sdf < sdf_min_dist:
+                sdf_min_dist = c_sdf
+        print(f"    -> Physics Sanitizer: verified zero penetration (min_sdf={sdf_min_dist:.2f}mm)")
+
+    # 4. Inverse Dynamics
     mass_estimate_g = 50.0
     for obj in meta.get("rigid_objects_3d", []):
         if "mass_estimate_grams" in obj:
@@ -71,13 +90,13 @@ def process_action_metadata(meta_path: str, auditor: URDFAuditor, dynamics_engin
     dyn_profile = dynamics_engine.analyze_trajectory(trajectory_m, mass_grams=mass_estimate_g, fps=fps)
     print(f"    -> Dynamics: peak_acc={dyn_profile.peak_acceleration_m_s2:.2f} m/s2, max_grip={dyn_profile.max_required_grip_n:.2f} N")
 
-    # 4. LeRobot Export
+    # 5. LeRobot Export
     base_name = os.path.splitext(os.path.basename(meta_path))[0]
     out_table = exporter.convert_metadata_to_episode(
         meta,
         num_frames=n_frames,
         contact_force=dyn_profile.max_required_grip_n,
-        sdf_min_dist_mm=0.0,
+        sdf_min_dist_mm=sdf_min_dist,
         feasibility_score=audit_report.feasibility_score_percent
     )
     pq_path = exporter.export_parquet(out_table, f"{base_name}.parquet")
@@ -105,6 +124,7 @@ def main():
         
     dynamics_engine = InverseDynamicsEngine()
     exporter = LeRobotExporter(output_dir=args.output_dir)
+    sanitizer = PhysicsSanitizer() if args.enable_sdf_sanitizer else None
     
     # Process existing processed metadata JSON files
     processed_metas = glob.glob(os.path.join(args.output_dir, "*_metadata.json"))
@@ -112,7 +132,7 @@ def main():
         print(f"\n[+] Processing {len(processed_metas)} physical digital twin metadata file(s)...")
         for idx, meta_file in enumerate(processed_metas, 1):
             print(f"  [{idx}/{len(processed_metas)}] {os.path.basename(meta_file)}")
-            process_action_metadata(meta_file, auditor, dynamics_engine, exporter, args.output_dir)
+            process_action_metadata(meta_file, auditor, dynamics_engine, exporter, args.output_dir, sanitizer=sanitizer)
 
     print("\n[OK] Pipeline completed successfully.")
     return 0

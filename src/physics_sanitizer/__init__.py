@@ -3,5 +3,13 @@ Praxis Physical Contact Sanitization & Signed Distance Field (SDF) Non-Penetrati
 """
 
 from src.physics_sanitizer.sdf import sdf_cylinder, sdf_box, sdf_sphere
+from src.physics_sanitizer.sanitizer import PhysicsSanitizer, ContactPoint, SanitizationAudit
 
-__all__ = ["sdf_cylinder", "sdf_box", "sdf_sphere"]
+__all__ = [
+    "sdf_cylinder",
+    "sdf_box",
+    "sdf_sphere",
+    "PhysicsSanitizer",
+    "ContactPoint",
+    "SanitizationAudit",
+]

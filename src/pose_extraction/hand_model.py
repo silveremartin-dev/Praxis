@@ -102,6 +102,40 @@ def solve_two_bone_ik(
     return p_mid, p_end
 
 
+class AnthropometricHandBounds:
+    """
+    Standard human anthropometric constraints and physiological joint limits.
+    Based on standard anthropometric surveys (e.g. NASA-STD-3000 / ANSUR II).
+    Adult hand length (wrist crease to distal tip of middle finger): 150mm - 250mm.
+    """
+    MIN_HAND_LENGTH_MM = 150.0
+    MAX_HAND_LENGTH_MM = 250.0
+    MIN_PALM_BREADTH_MM = 65.0
+    MAX_PALM_BREADTH_MM = 95.0
+    NOMINAL_HAND_LENGTH_MM = 184.0
+    NOMINAL_PALM_BREADTH_MM = 82.0
+
+    # Physiological joint angle limits (radians)
+    # Flexion (+) / Extension (-)
+    MCP_FLEXION_LIMITS = (-0.15, 1.60)   # -8 deg to 92 deg
+    PIP_FLEXION_LIMITS = (-0.05, 1.85)   # -3 deg to 106 deg
+    DIP_FLEXION_LIMITS = (-0.05, 1.55)   # -3 deg to 89 deg
+    FINGER_SPREAD_LIMITS = (-0.26, 0.26) # +/- 15 deg abduction/adduction
+
+    @classmethod
+    def clamp_curl_angles(cls, curl: Tuple[float, float, float]) -> Tuple[float, float, float]:
+        """Clamps (MCP, PIP, DIP) curl angles to physiological ranges (no backwards bending)."""
+        mcp = float(np.clip(curl[0], cls.MCP_FLEXION_LIMITS[0], cls.MCP_FLEXION_LIMITS[1]))
+        pip = float(np.clip(curl[1], cls.PIP_FLEXION_LIMITS[0], cls.PIP_FLEXION_LIMITS[1]))
+        dip = float(np.clip(curl[2], cls.DIP_FLEXION_LIMITS[0], cls.DIP_FLEXION_LIMITS[1]))
+        return (mcp, pip, dip)
+
+    @classmethod
+    def clamp_spread(cls, spread: float) -> float:
+        """Clamps finger abduction/adduction angle."""
+        return float(np.clip(spread, cls.FINGER_SPREAD_LIMITS[0], cls.FINGER_SPREAD_LIMITS[1]))
+
+
 class AnatomicalHandModel:
     """
     Continuous, anatomically proportioned human hand with a solid metacarpal palm,
@@ -109,9 +143,28 @@ class AnatomicalHandModel:
     Standardized to 50th percentile male hand metrics (scaled mm).
     """
 
-    def __init__(self, is_left_hand: bool = False, scale: float = 1.0):
+    def __init__(self, is_left_hand: bool = False, scale: float = 1.0, enforce_anthropometrics: bool = True):
         self.is_left = is_left_hand
         self.scale = scale
+        
+        # Validate that scaled hand dimensions stay strictly within human adult bounds
+        hand_length = self.total_hand_length_mm
+        if enforce_anthropometrics:
+            if hand_length < AnthropometricHandBounds.MIN_HAND_LENGTH_MM or hand_length > AnthropometricHandBounds.MAX_HAND_LENGTH_MM:
+                raise ValueError(
+                    f"Unphysical hand scale {scale:.2f} results in hand length {hand_length:.1f}mm, "
+                    f"outside human adult bounds [{AnthropometricHandBounds.MIN_HAND_LENGTH_MM}mm, {AnthropometricHandBounds.MAX_HAND_LENGTH_MM}mm]."
+                )
+
+    @property
+    def total_hand_length_mm(self) -> float:
+        """Total hand length from wrist crease to tip of middle finger in millimeters."""
+        return AnthropometricHandBounds.NOMINAL_HAND_LENGTH_MM * self.scale
+
+    @property
+    def palm_breadth_mm(self) -> float:
+        """Palm breadth across MCP knuckles in millimeters."""
+        return AnthropometricHandBounds.NOMINAL_PALM_BREADTH_MM * self.scale
 
     def build_articulated_parts(
         self,
@@ -145,14 +198,29 @@ class AnatomicalHandModel:
             return R_inv @ (np.asarray(pt_w, dtype=float) - palm_center)
 
         if finger_curls is None:
-            finger_curls = {
+            raw_curls = {
                 "index": (0.60, 0.75, 0.45),
                 "middle": (0.70, 0.85, 0.50),
                 "ring": (0.80, 0.95, 0.55),
                 "pinky": (0.90, 1.00, 0.60),
             }
+        else:
+            raw_curls = finger_curls
+
+        clamped_curls = {
+            fname: AnthropometricHandBounds.clamp_curl_angles(raw_curls.get(fname, (0.6, 0.8, 0.5)))
+            for fname in ["index", "middle", "ring", "pinky"]
+        }
+
         if finger_spread is None:
-            finger_spread = {"index": 0.05, "middle": 0.0, "ring": -0.05, "pinky": -0.10}
+            raw_spread = {"index": 0.05, "middle": 0.0, "ring": -0.05, "pinky": -0.10}
+        else:
+            raw_spread = finger_spread
+
+        clamped_spread = {
+            fname: AnthropometricHandBounds.clamp_spread(raw_spread.get(fname, 0.0))
+            for fname in ["index", "middle", "ring", "pinky"]
+        }
 
         # -------------------------------------------------------------
         # 1. Metacarpal Palm (Smooth cylindrical anatomical rays + carpal arch)
@@ -222,8 +290,8 @@ class AnatomicalHandModel:
                 )
                 p_tip = target_local if dist_tot <= (l_prox + l_mid + l_dist) else (p_dip + dip_dir * l_dist)
             else:
-                mcp_a, pip_a, dip_a = finger_curls.get(fname, (0.6, 0.8, 0.5))
-                sp = finger_spread.get(fname, 0.0) * sign
+                mcp_a, pip_a, dip_a = clamped_curls[fname]
+                sp = clamped_spread[fname] * sign
                 dir1 = np.array([np.sin(sp), np.sin(mcp_a), np.cos(mcp_a) * np.cos(sp)])
                 dir1 /= np.linalg.norm(dir1)
                 p_pip = p_mcp + dir1 * l_prox

@@ -101,3 +101,32 @@ All AI agents and developers implementing features in Praxis must respect the se
 * **Mirrored `tests/` Hierarchy**: All scene-specific test fixtures, procedural benchmarks, and unit/integration tests MUST reside under `tests/` in packages mirroring `src/` (`tests/ingestion/`, `tests/pose_extraction/`, `tests/physics_sanitizer/`, `tests/dynamics/`, `tests/feasibility/`, `tests/exporter/`, `tests/integration/`).
 * **Continuous Anatomical & Robotic Hands**: Hand models must enforce continuous kinematic connectivity (palmar web, thenar eminence, CMC-to-distal-phalanx chains with zero floating segments) and provide unified retargeting to 5-fingered anthropomorphic humanoid robot hands (`DexterousRobotHandModel`).
 
+---
+
+## 🔒 7. Automated Algorithmic Invariants & Solver Mandate (Zero Manual Cheating)
+
+To guarantee scientific reproducibility and production dataset scaling, all physical twin extraction in Praxis MUST follow strict programmatic and physical invariants without manual scene scripting or ad-hoc constant tweaking:
+
+### 1. The Automated Solver Mandate (No Manual Tweaking)
+* 3D hand poses and workpiece states MUST be computed programmatically by solver algorithms from video visual observations (keypoints, bounding contours, optical flow, chromatic tracking) projected into metric 3D space.
+* Hand positions and finger angles must NEVER be manually hand-tweaked or procedurally hardcoded with ad-hoc constant offsets in `src/`.
+* Any discrepancy between vision observations and CAD models must be resolved through **principled, constrained optimization** (e.g. contact-constrained Inverse Kinematics and SDF projection), not manual cheating.
+
+### 2. Anthropometric Invariants & Anatomical Bounds
+* **Metric Scale Boundaries**: Total human hand length ($L_{\text{hand}}$, from carpal wrist crease to the distal tip of the middle finger) is an invariant physiological quantity strictly bounded between:
+  $$150.0\text{ mm} \le L_{\text{hand}} \le 250.0\text{ mm} \quad (\text{Adult 50th percentile } \approx 184\text{ mm})$$
+  Palm breadth across MCP knuckles must be bounded between $65.0\text{ mm}$ and $95.0\text{ mm}$.
+  Any extracted hand model below $15\text{ cm}$ or above $25\text{ cm}$ is physically unfeasible and MUST be rejected automatically by `AnthropometricHandBounds`.
+* **Rigid Bone Chain Kinematics**: A hand is composed of nested rigid bone cylinders articulated by anatomical joints with physiological Degrees of Freedom (DoFs). Joint angles must respect human range-of-motion limits (MCP, PIP, DIP flexion $[0, 90^\circ-105^\circ]$, spread $[-15^\circ, +15^\circ]$). Hyperextension and impossible backwards bending are strictly forbidden.
+
+### 3. Solid Non-Penetrability Invariant ($L_{\text{SDF}} \ge 0$)
+* Both the human hand and the manipulated workpiece/tool are **solid physical bodies**.
+* The non-penetration condition MUST hold across all contact surfaces:
+  $$\min_{x \in \mathcal{M}_{\text{hand}}} \text{SDF}_{\text{workpiece}}(x) \ge 0.0\text{ mm}$$
+* Penetration of fingers or tools into solid rigid bodies is a physical impossibility. Any raw video extraction where fingers intersect solid CAD geometry must be automatically corrected by `PhysicsSanitizer` via outward gradient projection ($\nabla \text{SDF}$) onto the boundary manifold, or rejected if gross penetration exceeds the resolvable threshold.
+
+### 4. Workpiece Rigidity & Compliance Specification
+* Workpieces and tools are modeled as **rigid solids** by default ($k \to \infty$).
+* When an object or portion thereof is physically compliant or semi-soft (e.g., rubber pads, foam, human skin deformation), its softness must be modeled explicitly via defined compliance parameters (elastic modulus, maximum deformation depth), while strictly preventing unrestrained mesh penetration.
+
+

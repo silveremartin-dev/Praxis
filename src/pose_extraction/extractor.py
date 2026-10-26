@@ -17,9 +17,11 @@ import trimesh
 from src.pose_extraction.hand_model import (
     AnatomicalHandModel,
     DexterousRobotHandModel,
+    AnthropometricHandBounds,
     create_smooth_segment,
 )
 from src.pose_extraction.cad_primitives import ParametricCADBuilder
+from src.physics_sanitizer import PhysicsSanitizer, sdf_box
 
 
 @dataclass
@@ -257,6 +259,8 @@ class VideoPoseExtractor:
             "pinky": (0.50, 0.60, 0.35),
         }
 
+        raw_hand_meshes: List[Tuple[trimesh.Trimesh, str, float]] = []
+
         if use_robot_hands:
             lh_robot = DexterousRobotHandModel(is_left_hand=True, scale=0.86)
             lh_meshes = lh_robot.build_robotic_manipulator(
@@ -265,7 +269,7 @@ class VideoPoseExtractor:
                 finger_curls=lh_curls,
                 thumb_tip_target_world=lh_thumb_target_world,
             )
-            scene_meshes.extend(lh_meshes)
+            raw_hand_meshes.extend(lh_meshes)
         else:
             lh_human = AnatomicalHandModel(is_left_hand=True, scale=0.86)
             lh_parts = lh_human.build_articulated_parts(
@@ -276,7 +280,7 @@ class VideoPoseExtractor:
             )
             for m, ptype in lh_parts:
                 color = "#f0b499" if "thumb" in ptype or ptype == "tip" else "#dc9676"
-                scene_meshes.append((m, color, 0.99))
+                raw_hand_meshes.append((m, color, 0.99))
 
         # ------------------------------------------------------------------
         # 3. Right Hand & Bypass Needle Kinematics (5 Distinct Video Phases)
@@ -454,7 +458,7 @@ class VideoPoseExtractor:
                 thumb_tip_target_world=rh_thumb_target,
                 index_tip_target_world=rh_index_target,
             )
-            scene_meshes.extend(rh_meshes)
+            raw_hand_meshes.extend(rh_meshes)
         else:
             rh_human = AnatomicalHandModel(is_left_hand=False, scale=0.84)
             rh_parts = rh_human.build_articulated_parts(
@@ -466,7 +470,27 @@ class VideoPoseExtractor:
             )
             for m, ptype in rh_parts:
                 color = "#f0b499" if "thumb" in ptype or ptype == "tip" else "#d68f70"
-                scene_meshes.append((m, color, 0.99))
+                raw_hand_meshes.append((m, color, 0.99))
+
+        # ------------------------------------------------------------------
+        # 4. Automated Physics Sanitization & Zero-Penetration Projection
+        # ------------------------------------------------------------------
+        # Workpiece SDF in world coordinates
+        def world_lock_sdf(pts_world: np.ndarray) -> np.ndarray:
+            p_w = np.atleast_2d(pts_world)
+            p_loc = (p_w - lock_pos) @ R_lock
+            p_box = p_loc - np.array([0.0, 0.0, 17.5])
+            return sdf_box(p_box, np.array([20.0, 9.5, 17.5]))
+
+        sanitizer = PhysicsSanitizer(default_contact_margin_mm=0.0)
+        hand_length_mm = 184.0 * 0.86
+        sanitized_hand_meshes, audit = sanitizer.sanitize_scene_meshes(
+            raw_hand_meshes,
+            world_lock_sdf,
+            margin_mm=0.0,
+            hand_length_mm=hand_length_mm,
+        )
+        scene_meshes.extend(sanitized_hand_meshes)
 
         state_info = {
             "progress": round(t, 4),
@@ -478,6 +502,14 @@ class VideoPoseExtractor:
             "active_target_mm": (tip_world if needle_visible else rh_index_target).round(2).tolist(),
             "pinch_pos_mm": pinch_world.round(2).tolist(),
             "vision_frames_analyzed": len(feats),
+            "physics_sanitization": {
+                "initial_max_penetration_mm": round(audit.initial_max_penetration_mm, 3),
+                "final_max_penetration_mm": round(audit.final_max_penetration_mm, 3),
+                "num_violating_vertices": audit.num_violating_vertices,
+                "is_physically_valid": audit.is_physically_valid,
+                "anthropometric_valid": audit.anthropometric_valid,
+                "hand_length_mm": round(audit.hand_length_mm, 1),
+            }
         }
 
         return scene_meshes, state_info
