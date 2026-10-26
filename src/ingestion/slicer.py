@@ -86,6 +86,13 @@ def slice_action_video(
     print(f"[+] Sub-video successfully sliced: {output_clip_path}")
     print(f"    Frames: {written_count} | Duration: {actual_duration:.2f}s | Resolution: {width}x{height} @ {fps:.2f}fps")
     
+    # Validate goal-directed action and state irreversibility
+    from src.ingestion.shot_detector import GoalDirectedActionValidator
+    verb = action_info.get("verb", "manipulate")
+    pre_cond = action_info.get("pre_condition", "initial_unmanipulated_state")
+    post_cond = action_info.get("post_condition", "target_manipulated_state")
+    goal_audit = GoalDirectedActionValidator.validate_action(verb, pre_cond, post_cond)
+
     # Build complete semantic metadata ("what is the person doing?")
     metadata = {
         "clip_file": os.path.basename(output_clip_path),
@@ -99,11 +106,18 @@ def slice_action_video(
         },
         "action_annotation": {
             "what_is_the_person_doing": action_info.get("description", "Demonstrating physical tool manipulation"),
-            "action_verb": action_info.get("verb", "manipulate"),
+            "action_verb": verb,
             "target_tool": action_info.get("tool", "unspecified_tool"),
             "target_workpiece": action_info.get("workpiece", "unspecified_object"),
             "hand_engagement": action_info.get("hands", "bi-manual"),
             "camera_context": action_info.get("camera", "static_macro")
+        },
+        "task_teleology": {
+            "is_goal_directed": goal_audit.is_goal_directed,
+            "is_state_irreversible": goal_audit.is_state_irreversible,
+            "pre_condition": pre_cond,
+            "post_condition": post_cond,
+            "action_verb": verb,
         },
         "physical_affordances": action_info.get("affordances", {}),
         "next_pipeline_stages": [

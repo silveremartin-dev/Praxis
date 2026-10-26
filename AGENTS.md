@@ -166,5 +166,28 @@ Praxis feeds physical manipulation data into modern robot imitation learning (Le
 3. **Method 3: Physics Tokens & VLA Conditioning Embeddings**:
    Each episode exports compact physical descriptors (`mass_class`, `grasp_type`, `continuity_score`, and feature vector embeddings) into the Parquet dataset, allowing Vision-Language-Action Transformers to condition policies directly on physical dynamics.
 
+---
+
+## 🎬 9. Single-Shot Continuity, Hand Presence & Goal-Directed Irreversibility
+
+### 1. The Single-Shot Continuity Invariant (Zero-Cut Mandate)
+* A physical demonstration sub-video clip MUST originate from a **single, continuous, fixed camera plane**.
+* Any camera cut, angle shift, framing jump, or zoom transition implies unknown elapsed time ($\Delta t > 0$, out-of-frame editing, jump cut). Splicing through a camera cut destroys temporal and physical causality and is strictly forbidden.
+* The yield filter automatically audits inter-frame pixel differences across candidate clips via `ShotBoundaryDetector` and rejects any demonstration containing an abrupt shot boundary ($\text{CutDetected} = \text{True}$).
+
+### 2. Active Hand Manipulation Intake Filter
+* Raw videos are segmented into continuous fixed shots and audited for active physical manipulation.
+* Clips lacking continuous human hand presence (talking heads, room pans, static tabletop views) are discarded at Tier 1 intake.
+* Acceptance condition: `HandManipulationDetector` requires active hand engagement across $\ge 65\%$ of the clip duration.
+
+### 3. Goal-Directed Teleology & State-Transition Irreversibility (The Physical Arrow of Time)
+* A valid physical manipulation sequence is **goal-directed** (*teleological*) and targets a defined mechanical objective:
+  $$\text{Goal Verbs} \in \{\text{open}, \text{close}, \text{turn}, \text{rotate}, \text{screw}, \text{unscrew}, \text{separate}, \text{disassemble}, \text{insert}, \text{unlatch}, \text{fasten}, \text{bypass}\}$$
+* **Thermodynamic & Physical Irreversibility**: Valid demonstrations induce a directed physical state change:
+  $$\text{State}_{\text{pre}} \neq \text{State}_{\text{post}}$$
+  *(e.g., closed lock $\to$ open shackle, fastened screw $\to$ loose screw, joined components $\to$ separated parts)*.
+* **Rejection of Symmetrical / Idle Gestures**: Reversible motions with zero net state change (hand waving, scratching, finger drumming on a table, idle fidgeting) are uninformative demonstrations and are strictly rejected by `GoalDirectedActionValidator`.
+
+
 
 
